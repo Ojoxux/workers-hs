@@ -69,7 +69,9 @@ put (Cache c) req resp = do
   cacheCall (js_put c key copy)
 
 -- | 'put' after the response has been returned: copies it now, stores the copy
--- in 'waitUntil'. Errors go to @console.error@, as for any 'waitUntil' action.
+-- in 'waitUntil'. An invalid key throws here, like 'put'; the cache's
+-- refusals (non-GET key, 206, @Vary: *@) go to @console.error@, as for any
+-- 'waitUntil' action.
 putLater :: Context -> Cache -> Request -> Response -> IO ()
 putLater ctx (Cache c) req resp = do
   key <- keyToJS req
