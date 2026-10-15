@@ -30,6 +30,7 @@ module Cloudflare.Workers.Fetch.Internal
   , fromJSRequest
   , fromJSResponse
   , toJSResponse
+  , cloneResponse
   , bodyToJS
   ) where
 
@@ -256,6 +257,17 @@ toJSResponse r = case rOriginal r of
     b <- if hasNullBody (rStatus r) then jsNull else bodyToJS (rBody r)
     awaitJS (js_mkResponse b (rStatus r) (bytesToJS (rStatusText r)) hs)
 
+-- | A copy whose body can be read or sent without using up the original's.
+cloneResponse :: Response -> IO Response
+cloneResponse r = case rOriginal r of
+  Just v -> ensureUnused v >> awaitJS (js_clone v) >>= fromJSResponse
+  Nothing -> case rBody r of
+    BytesBody _  -> pure r
+    JSBody owner -> do
+      ensureUnused owner
+      copy <- awaitJS (js_clone owner)
+      pure r {rBody = JSBody copy}
+
 -- | @new Response(body, ...)@ throws for these unless the body is @null@.
 --
 -- 101 is listed for completeness: @new Response@ rejects it regardless, as it
@@ -311,3 +323,6 @@ foreign import javascript unsafe "({ method: $1, headers: $2, body: $3, redirect
 
 foreign import javascript safe "fetch($1, $2)"
   js_fetch :: JSString -> JSVal -> IO JSVal
+
+foreign import javascript safe "return $1.clone();"
+  js_clone :: JSVal -> IO JSVal

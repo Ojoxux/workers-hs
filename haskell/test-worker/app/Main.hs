@@ -6,6 +6,7 @@
 module Main (main) where
 
 import           Cloudflare.Workers.Context (Context, waitUntil)
+import qualified Cloudflare.Workers.Cache   as Cache
 import qualified Cloudflare.Workers.Crypto  as Crypto
 import qualified Cloudflare.Workers.D1      as D1
 import           Cloudflare.Workers.Entry   (runWorker)
@@ -35,6 +36,14 @@ route :: Env -> F.Request -> Context -> IO F.Response
 route env req ctx =
   case segments (F.url req) of
     ["hello"] -> pure (ok "hello")
+    ["cache", "flow", k] -> ok <$> cacheFlow env k
+    ["cache", "short", "put", k] -> do
+      c <- Cache.defaultCache
+      Cache.put c (cacheKey k) (F.response 200 [("cache-control", "max-age=1")] (F.bodyText "short"))
+      pure (ok "put")
+    ["cache", "short", "get", k] -> do
+      c <- Cache.defaultCache
+      ok . maybe "miss" (const "hit") <$> Cache.match c (cacheKey k)
     ["status", code]
       | Just n <- readMaybe (T.unpack code) -> pure (F.response n [] (F.bodyText "x"))
     ["body", "echo"] -> F.response 200 [] . F.bodyBytes <$> F.bytes (F.body req)
@@ -237,6 +246,57 @@ route env req ctx =
       _ <- D1.d1 env "NOPE"
       pure (ok "unreachable")
     _ -> pure (F.response 404 [] (F.bodyText "not found"))
+
+-- | Each Cache behaviour on keys under k, one line per check.
+cacheFlow :: Env -> Text -> IO Text
+cacheFlow env k = do
+  c <- Cache.defaultCache
+  let key s = cacheKey (k <> "/" <> s)
+      for60 hs b = F.response 200 (("cache-control", "max-age=60") : hs) (F.bodyText b)
+      described = maybe (pure "miss") $ \r -> do
+        b <- F.text (F.responseBody r)
+        pure (T.pack (show (F.status r)) <> " " <> b <> " x-a=" <> maybe "-" (T.pack . BC.unpack) (lookup "x-a" (F.responseHeaders r)))
+      attempt act = either (\e -> "refused: " <> Cache.cacheMessage e) (const "stored") <$> try act
+  missing <- Cache.match c (key "a") >>= described
+  Cache.put c (key "a") (for60 [("x-a", "1")] "hello")
+  hit <- Cache.match c (key "a") >>= described
+  -- A response that came from the cache (a JS original) put again, then read.
+  Just again <- Cache.match c (key "a")
+  Cache.put c (key "again") again
+  againOriginal <- F.text (F.responseBody again)
+  againCached <- Cache.match c (key "again") >>= described
+  deleted <- Cache.delete c (key "a")
+  deletedTwice <- Cache.delete c (key "a")
+  afterDelete <- Cache.match c (key "a") >>= described
+  partial <- attempt (Cache.put c (key "p") (F.response 206 [] (F.bodyText "x")))
+  varyAll <- attempt (Cache.put c (key "v") (F.response 200 [("vary", "*")] (F.bodyText "x")))
+  Cache.put c (key "cookie") (for60 [("set-cookie", "a=b")] "x")
+  cookie <- Cache.match c (key "cookie") >>= described
+  named <- Cache.openCache "named"
+  Cache.put named (key "n") (for60 [] "n")
+  inNamed <- Cache.match named (key "n") >>= described
+  inDefault <- Cache.match c (key "n") >>= described
+  -- A Haskell response around a JS stream body (from fetch): put, then read both.
+  up <- Env.var env "UPSTREAM"
+  echoed <- F.fetch F.request {F.url = up <> "/sized"}
+  let wrapped = F.response 200 [("cache-control", "max-age=60")] (F.responseBody echoed)
+  Cache.put c (key "s") wrapped
+  streamOriginal <- F.text (F.responseBody wrapped)
+  streamCached <- Cache.match c (key "s") >>= described
+  pure $ T.unlines
+    [ "miss: " <> missing
+    , "hit: " <> hit
+    , "again: original=" <> againOriginal <> " cached=" <> againCached
+    , "delete: " <> T.pack (show (deleted, deletedTwice)) <> " then " <> afterDelete
+    , "206: " <> partial
+    , "vary: " <> varyAll
+    , "set-cookie: " <> cookie
+    , "named: " <> inNamed <> " default: " <> inDefault
+    , "stream: original=" <> streamOriginal <> " cached=" <> streamCached
+    ]
+
+cacheKey :: Text -> F.Request
+cacheKey k = F.request {F.url = "https://cache.test/" <> k}
 
 ok :: Text -> F.Response
 ok = F.response 200 [("content-type", "text/plain; charset=utf-8")] . F.bodyText

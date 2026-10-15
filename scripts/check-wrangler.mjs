@@ -8,6 +8,7 @@
 // http-client's Manager over fetch (GET, form POST, redirects, gzip, failures).
 // test-worker also gets the local D1 of test/wrangler.toml (binding DB), against
 // which the D1 checks run: Node has no D1, so they exist only here.
+// The Cache API checks also run only here, against test-worker.
 //
 //   node scripts/check-wrangler.mjs
 //   SHOW_WRANGLER_LOG=1 node scripts/check-wrangler.mjs   # print the log even on success
@@ -384,6 +385,33 @@ const managerChecks = [
   }],
 ];
 
+// --- the Cache API (workerd only: Node has no caches) ---------------------
+
+const cacheChecks = [
+  ["cache match, put, delete, refusals and copies", async (p) => {
+    const body = await (await send(`/cache/flow/k${Date.now()}`)).text();
+    expectEqual(p, "flow", body, [
+      "miss: miss",
+      "hit: 200 hello x-a=1",
+      "again: original=hello cached=200 hello x-a=1",
+      "delete: (True,False) then miss",
+      "206: refused: Cannot cache response to a range request (206 Partial Content).",
+      "vary: refused: Cannot cache response with 'Vary: *' header.",
+      "set-cookie: miss",
+      "named: 200 n x-a=- default: miss",
+      "stream: original=0123456789 cached=200 0123456789 x-a=-",
+      "",
+    ].join("\n"));
+  }],
+  ["cache entries expire with max-age", async (p) => {
+    const k = `short${Date.now()}`;
+    await (await send(`/cache/short/put/${k}`)).text();
+    expectEqual(p, "before", await (await send(`/cache/short/get/${k}`)).text(), "hit");
+    await new Promise((r) => setTimeout(r, 2100));
+    expectEqual(p, "after 2.1s", await (await send(`/cache/short/get/${k}`)).text(), "miss");
+  }],
+];
+
 // --- D1 against the local database of test/wrangler.toml (workerd only:
 // Node has no D1) ----------------------------------------------------------
 
@@ -570,6 +598,15 @@ try {
     report(name, problems);
   }
   for (const [name, run] of d1Checks) {
+    const problems = [];
+    try {
+      await run(problems);
+    } catch (e) {
+      problems.push(`threw ${e?.stack ?? e}`);
+    }
+    report(name, problems);
+  }
+  for (const [name, run] of cacheChecks) {
     const problems = [];
     try {
       await run(problems);
