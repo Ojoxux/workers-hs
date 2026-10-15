@@ -285,6 +285,13 @@ const persistChecks = [
     expectEqual(p, "first", first, `id=${id} count=1`);
     expectEqual(p, "second", second, `id=${id} count=2`);
   }],
+  ["persistent upsertBy on an entity with a generated column", async (p) => {
+    const t = `gen${Date.now()}`;
+    const first = await (await sendYesod(`/persist/upsert-generated/${t}`)).text();
+    const second = await (await sendYesod(`/persist/upsert-generated/${t}`)).text();
+    expectEqual(p, "first", first, `shout=${t.toUpperCase()} count=1`);
+    expectEqual(p, "second", second, `shout=${t.toUpperCase()} count=2`);
+  }],
   ["persistent upsertBy under concurrency is one atomic statement", async (p) => {
     const t = `upsc-${Date.now()}`;
     const rs = await Promise.all(Array.from({ length: 20 }, () => sendYesod(`/persist/upsert/${t}`)));

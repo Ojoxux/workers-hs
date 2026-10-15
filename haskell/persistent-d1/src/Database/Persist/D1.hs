@@ -53,6 +53,7 @@ import           Data.Conduit                 (ConduitM, yield)
 import           Data.Fixed                   (Pico)
 import           Data.IORef                   (newIORef)
 import           Data.List.NonEmpty           (NonEmpty)
+import           Data.Maybe                   (isNothing)
 import qualified Data.List.NonEmpty           as NE
 import           Data.Pool                    (Pool, defaultPoolConfig, newPool)
 import           Data.Text                    (Text)
@@ -116,11 +117,15 @@ insertReturning ent vals =
 -- list): insert, or update the row that holds the same unique key, and return
 -- it. A lookup followed by a write would let concurrent requests interleave.
 -- Parameters: the record's fields, the update values, the unique key's values.
+-- The record's fields include generated columns, which cannot be inserted, so
+-- an inner SELECT takes every field and the INSERT keeps the others. SQLite
+-- needs a WHERE on an upsert's SELECT to parse it.
 upsertSql :: EntityDef -> NonEmpty (FieldNameHS, FieldNameDB) -> Text -> Text
 upsertSql ent uniqs updates =
   T.concat
-    [ "INSERT INTO ", table, "(", T.intercalate "," cols, ") VALUES ("
-    , T.intercalate "," (map (const "?") cols), ")"
+    [ "INSERT INTO ", table, "(", T.intercalate "," insertCols, ")"
+    , " SELECT ", T.intercalate "," insertCols
+    , " FROM (SELECT ", T.intercalate "," ["? AS " <> c | c <- allCols], ") WHERE true"
     , " ON CONFLICT (", T.intercalate "," (map (column . snd) keys), ")"
     , " DO UPDATE SET ", updates
     , " WHERE ", T.intercalate " AND " [table <> "." <> column f <> "=?" | (_, f) <- keys]
@@ -128,7 +133,9 @@ upsertSql ent uniqs updates =
     ]
   where
     table = escape (unEntityNameDB (getEntityDBName ent))
-    cols = map (column . fieldDB) (getEntityFields ent)
+    allCols = map (column . fieldDB) (getEntityFields ent)
+    insertCols =
+      [column (fieldDB fd) | fd <- getEntityFields ent, isNothing (fieldGenerated fd)]
     column = escape . unFieldNameDB
     keys = NE.toList uniqs
 

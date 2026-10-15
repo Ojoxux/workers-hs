@@ -62,6 +62,11 @@ Note
   blob ByteString
   UniqueTitle title
   deriving Show Eq
+Tag
+  name Text
+  shout Text generated=upper(name)
+  count Int
+  UniqueTagName name
 |]
 
 -- Two versions of one table, for a migration that changes it.
@@ -101,6 +106,7 @@ mkYesod "App" [parseRoutes|
 /persist/bulk         PersistBulkR   GET
 /persist/pool         PersistPoolR   GET
 /persist/upsert/#Text PersistUpsertR GET
+/persist/upsert-generated/#Text PersistUpsertGeneratedR GET
 |]
 
 instance Yesod App where
@@ -179,6 +185,12 @@ getPersistUpsertR :: Text -> Handler Text
 getPersistUpsertR t = withDb $ \db -> runD1 db $ do
   Entity k n <- upsertBy (UniqueTitle t) (sample t 1) [NoteCount +=. 1]
   pure ("id=" <> T.pack (show (fromSqlKey k)) <> " count=" <> T.pack (show (noteCount n)))
+
+-- | upsertBy on an entity with a generated column (shout = upper(name)).
+getPersistUpsertGeneratedR :: Text -> Handler Text
+getPersistUpsertGeneratedR t = withDb $ \db -> runD1 db $ do
+  Entity _ g <- upsertBy (UniqueTagName t) (Tag t "" 1) [TagCount +=. 1]
+  pure ("shout=" <> tagShout g <> " count=" <> T.pack (show (tagCount g)))
 
 -- | Insert a note titled after the path, then read it back by the returned key.
 getPersistInsertR :: Text -> Handler Text

@@ -268,6 +268,9 @@ local D1 (binding `DB` in `test/yesod-wrangler.toml`) and calls its
 - CRUD: insert, get, a filtered, ordered and limited `selectList`, update,
   delete and count;
 - 20 concurrent inserts each read back their own row;
+- `upsertBy` inserts and then updates the same row, also on an entity with a
+  generated column, and 20 concurrent `upsertBy` calls each see a distinct
+  count;
 - every field type of the test entity round-trips;
 - a unique constraint rejects a duplicate;
 - bulk writes past 100 parameters (`insertMany_`, `putManyChunked`,
