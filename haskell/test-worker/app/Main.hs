@@ -13,18 +13,23 @@ import           Cloudflare.Workers.Entry   (runWorker)
 import           Cloudflare.Workers.Env     (Env)
 import qualified Cloudflare.Workers.Env     as Env
 import qualified Cloudflare.Workers.Fetch   as F
+import           Control.Concurrent         (threadDelay)
 import           Control.Exception          (try)
-import           Control.Monad              (join, void)
+import           Control.Monad              (forM_, join, replicateM_, void)
 import           Data.Bits                  (shiftL, shiftR, (.&.), (.|.))
 import qualified Data.ByteString            as B
+import qualified Data.ByteString.Builder    as BB
 import qualified Data.ByteString.Char8      as BC
 import           Data.CaseInsensitive       (original)
 import           Data.Char                  (ord)
 import           Data.Int                   (Int64)
+import           Data.IORef                 (IORef, newIORef, readIORef,
+                                             writeIORef)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Network.HTTP.Types         (parseQuery)
 import           System.Environment         (lookupEnv)
+import           System.IO.Unsafe           (unsafePerformIO)
 import           Text.Read                  (readMaybe)
 
 foreign export javascript "workerMain" main :: IO ()
@@ -36,6 +41,33 @@ route :: Env -> F.Request -> Context -> IO F.Response
 route env req ctx =
   case segments (F.url req) of
     ["hello"] -> pure (ok "hello")
+    ["stream", "slow"] -> F.response 200 [] <$> F.bodyStream (\write flush ->
+      forM_ ["one\n", "two\n", "three\n"] $ \s -> do
+        write (BB.byteString s)
+        flush
+        threadDelay 300000)
+    ["stream", "big"] -> F.response 200 [] <$> F.bodyStream (\write _ ->
+      replicateM_ 2000 (write (BB.byteString "0123456789")))
+    ["stream", "fail"] -> F.response 200 [] <$> F.bodyStream (\write flush -> do
+      write "partial\n"
+      flush
+      fail "stream boom")
+    ["stream", "endless"] -> F.response 200 [] <$> F.bodyStream (\write flush ->
+      forM_ [1 :: Int .. 200] $ \i -> do
+        writeIORef endlessWrites i
+        write (BB.intDec i <> "\n")
+        flush
+        threadDelay 20000)
+    ["stream", "endless-writes"] -> ok . T.pack . show <$> readIORef endlessWrites
+    ["stream", "bytes"] -> do
+      b <- F.bodyStream (\write _ -> write "hello " >> write "stream")
+      ok <$> F.text b
+    ["stream", "cache", k] -> do
+      c <- Cache.defaultCache
+      b <- F.bodyStream (\write _ -> write "streamed")
+      Cache.put c (cacheKey k) (F.response 200 [("cache-control", "max-age=60")] b)
+      hit <- Cache.match c (cacheKey k)
+      maybe (pure (ok "miss")) (fmap ok . F.text . F.responseBody) hit
     ["cache", "flow", k] -> ok <$> cacheFlow env k
     -- Return a fetched response and store it after it is sent.
     ["cache", "later", k] -> do
@@ -307,6 +339,11 @@ cacheFlow env k = do
 
 cacheKey :: Text -> F.Request
 cacheKey k = F.request {F.url = "https://cache.test/" <> k}
+
+-- | How far /stream/endless got, to see that it stops when its reader does.
+endlessWrites :: IORef Int
+endlessWrites = unsafePerformIO (newIORef 0)
+{-# NOINLINE endlessWrites #-}
 
 ok :: Text -> F.Response
 ok = F.response 200 [("content-type", "text/plain; charset=utf-8")] . F.bodyText

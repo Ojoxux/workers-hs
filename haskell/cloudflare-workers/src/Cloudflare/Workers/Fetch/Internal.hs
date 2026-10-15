@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Representation of Fetch API values and their conversion to and from
 -- JavaScript. "Cloudflare.Workers.Fetch" is the public face; this module also
@@ -13,6 +14,7 @@ module Cloudflare.Workers.Fetch.Internal
   , noBody
   , bodyBytes
   , bodyText
+  , bodyStream
   , bytes
   , text
   , BodyAlreadyUsed (..)
@@ -34,9 +36,15 @@ module Cloudflare.Workers.Fetch.Internal
   , bodyToJS
   ) where
 
-import           Control.Exception               (Exception (..), throwIO, try)
-import           Control.Monad                   (when)
+import           Control.Concurrent              (forkIO)
+import           Control.Exception               (Exception (..), SomeException,
+                                                  fromException, throwIO, try)
+import           Control.Monad                   (unless, void, when)
 import qualified Data.ByteString                 as B
+import qualified Data.ByteString.Builder         as BB
+import qualified Data.ByteString.Lazy            as BL
+import           Data.IORef                      (newIORef, readIORef,
+                                                  writeIORef)
 import           Data.Text                       (Text)
 import qualified Data.Text                       as T
 import qualified Data.Text.Encoding              as TE
@@ -96,6 +104,52 @@ bodyBytes = BytesBody
 -- | UTF-8 encoded.
 bodyText :: Text -> Body
 bodyText = BytesBody . TE.encodeUtf8
+
+-- | A body written from Haskell while it is sent. @write@ queues bytes and
+-- @flush@ sends them; about 16 KB are sent without a flush. The writer runs on
+-- its own thread, so the response can be returned first. An exception in it is
+-- logged and ends the stream in an error; a reader that goes away stops it.
+--
+-- The result is an ordinary JavaScript body: it can be read or sent once.
+bodyStream :: ((BB.Builder -> IO ()) -> IO () -> IO ()) -> IO Body
+bodyStream withBody = do
+  ts <- js_transformStream
+  w <- js_writer ts
+  _ <- forkIO (runWriter w withBody)
+  JSBody <$> js_responseOf ts
+
+-- | Thrown inside the writer once the reader has gone away.
+data StreamCancelled = StreamCancelled
+  deriving (Show)
+
+instance Exception StreamCancelled
+
+runWriter :: JSVal -> ((BB.Builder -> IO ()) -> IO () -> IO ()) -> IO ()
+runWriter w withBody = do
+  buf <- newIORef (0 :: Int, [] :: [B.ByteString])
+  let flush = do
+        (_, cs) <- readIORef buf
+        writeIORef buf (0, [])
+        let chunk = B.concat (reverse cs)
+        unless (B.null chunk) $ do
+          arr <- toJSBytes chunk
+          r <- try (awaitJS (js_write w arr))
+          either (\(_ :: JSError) -> throwIO StreamCancelled) pure r
+      write b = do
+        (n, cs) <- readIORef buf
+        let new = BL.toChunks (BB.toLazyByteString b)
+            n' = n + sum (map B.length new)
+        writeIORef buf (n', reverse new ++ cs)
+        when (n' >= 16384) flush
+  r <- try (withBody write flush >> flush)
+  case r of
+    Right () -> void (try (awaitJS (js_close w)) :: IO (Either JSError ()))
+    Left (e :: SomeException)
+      | Just StreamCancelled <- fromException e -> pure ()
+      | otherwise -> do
+          let msg = T.pack (displayException e)
+          consoleError ("bodyStream: " <> msg)
+          js_abort w (textToJS msg)
 
 -- | Thrown when a JavaScript body is read, or forwarded, a second time.
 data BodyAlreadyUsed = BodyAlreadyUsed
@@ -326,3 +380,22 @@ foreign import javascript safe "fetch($1, $2)"
 
 foreign import javascript safe "return $1.clone();"
   js_clone :: JSVal -> IO JSVal
+
+foreign import javascript unsafe "new TransformStream()"
+  js_transformStream :: IO JSVal
+
+foreign import javascript unsafe "$1.writable.getWriter()"
+  js_writer :: JSVal -> IO JSVal
+
+foreign import javascript unsafe "new Response($1.readable)"
+  js_responseOf :: JSVal -> IO JSVal
+
+-- | safe: rejects once the reader has cancelled.
+foreign import javascript safe "await $1.write($2);"
+  js_write :: JSVal -> JSVal -> IO ()
+
+foreign import javascript safe "await $1.close();"
+  js_close :: JSVal -> IO ()
+
+foreign import javascript unsafe "$1.abort(new Error($2)).catch(() => {})"
+  js_abort :: JSVal -> JSString -> IO ()
