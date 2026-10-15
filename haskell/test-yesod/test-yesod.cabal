@@ -17,6 +17,7 @@ executable test-yesod
     , base
     , bytestring
     , cloudflare-workers
+    , conduit
     , persistent
     , persistent-d1
     , text

@@ -465,6 +465,9 @@ const streamChecks = [
       p.push(`not spread out: ${JSON.stringify(chunks)}`);
     }
   }],
+  ["a Yesod source that holds a resource streams to the end", async (p) => {
+    expectEqual(p, "body", await (await sendYesod("/stream/resource")).text(), "inside\n");
+  }],
 ];
 
 // --- D1 against the local database of test/wrangler.toml (workerd only:

@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Run a WAI 'Application' on the Cloudflare Workers runtime.
 --
@@ -28,6 +29,12 @@ import           Cloudflare.Workers.Context (Context)
 import           Cloudflare.Workers.Entry   (runWorker)
 import           Cloudflare.Workers.Env     (Env)
 import qualified Cloudflare.Workers.Fetch   as F
+import           Cloudflare.Workers.Internal.FFI (consoleError)
+import           Control.Concurrent         (forkIO, newEmptyMVar, putMVar,
+                                             takeMVar, tryPutMVar)
+import           Control.Exception          (SomeException, displayException,
+                                             finally, throwIO, toException, try)
+import           Control.Monad              (unless, void)
 import qualified Data.ByteString            as B
 import qualified Data.ByteString.Builder    as BB
 import qualified Data.ByteString.Char8      as BC
@@ -64,15 +71,24 @@ requestContext = Vault.lookup contextKey . vault
 serve :: Application -> F.Request -> Context -> IO F.Response
 serve app freq ctx = do
   req <- toWaiRequest freq ctx
-  -- WAI's continuation cannot be observed from JavaScript, so capture the
-  -- response the application hands to `respond`.
-  slot <- newIORef Nothing
-  _ <- app req $ \res -> do
-    writeIORef slot (Just res)
-    pure ResponseReceived
-  readIORef slot >>= \case
-    Nothing  -> fail "the Application never called respond"
-    Just res -> fromWaiResponse res
+  -- The Application runs on its own thread and `respond` returns only once a
+  -- streamed body is written, as under warp, so the app's finalizers (bracket,
+  -- ResourceT) run after the body rather than before it. The response itself
+  -- is handed back as soon as `respond` is called.
+  result <- newEmptyMVar
+  _ <- forkIO $ do
+    r <- try $ app req $ \res -> do
+      (fres, written) <- fromWaiResponse res
+      void (tryPutMVar result (Right fres))
+      written
+      pure ResponseReceived
+    case r of
+      Right ResponseReceived ->
+        void (tryPutMVar result (Left (toException (userError "the Application never called respond"))))
+      Left (e :: SomeException) -> do
+        sent <- tryPutMVar result (Left e)
+        unless sent (consoleError ("wai-handler-cloudflare: after respond: " <> T.pack (displayException e)))
+  takeMVar result >>= either throwIO pure
 
 -- ---------------------------------------------------------------------------
 -- F.Request -> WAI Request
@@ -149,14 +165,21 @@ remoteHostFrom hs =
 -- WAI Response -> F.Response
 -- ---------------------------------------------------------------------------
 
-fromWaiResponse :: Response -> IO F.Response
+-- | The response, and an action that waits until its body is written.
+fromWaiResponse :: Response -> IO (F.Response, IO ())
 fromWaiResponse = \case
   ResponseBuilder st hs builder ->
-    pure (bytesResponse st hs (BB.toLazyByteString builder))
-  ResponseStream st hs withBody ->
-    F.response (statusCode st) hs <$> F.bodyStream withBody
-  ResponseFile{} -> pure (unsupported "responseFile")
-  ResponseRaw{} -> pure (unsupported "responseRaw")
+    pure (bytesResponse st hs (BB.toLazyByteString builder), pure ())
+  ResponseStream st hs withBody
+    -- The runtime never reads these bodies, so the writer would never finish.
+    | statusCode st `elem` [204, 205, 304] ->
+        pure (F.response (statusCode st) hs F.noBody, pure ())
+    | otherwise -> do
+        done <- newEmptyMVar
+        b <- F.bodyStream (\write flush -> withBody write flush `finally` putMVar done ())
+        pure (F.response (statusCode st) hs b, takeMVar done)
+  ResponseFile{} -> pure (unsupported "responseFile", pure ())
+  ResponseRaw{} -> pure (unsupported "responseRaw", pure ())
 
 bytesResponse :: Status -> ResponseHeaders -> BL.ByteString -> F.Response
 bytesResponse st hs b = F.response (statusCode st) hs (F.bodyBytes (BL.toStrict b))

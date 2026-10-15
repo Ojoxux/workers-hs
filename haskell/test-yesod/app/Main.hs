@@ -32,6 +32,7 @@ import qualified Cloudflare.Workers.Env         as Env
 import           Control.Concurrent             (threadDelay)
 import           Control.Exception              (SomeException, try, tryJust)
 import           Control.Monad                  (forM_)
+import           Data.Conduit                   (bracketP)
 import           Data.ByteString                (ByteString)
 import qualified Data.ByteString                as B
 import           Data.Maybe                     (fromMaybe, maybeToList)
@@ -98,6 +99,7 @@ mkYesod "App" [parseRoutes|
 /count CountR GET
 /large LargeR GET
 /stream StreamR GET
+/stream/resource StreamResourceR GET
 /form  FormR  GET POST
 /persist/migration PersistMigrationR GET
 /persist/setup     PersistSetupR     GET
@@ -136,6 +138,13 @@ getStreamR = respondSource "text/plain" $
     sendChunkBS s
     sendFlush
     liftIO (threadDelay 300000)
+
+-- | A source that holds a resource while it streams.
+getStreamResourceR :: Handler TypedContent
+getStreamResourceR = respondSource "text/plain" $
+  bracketP (pure ()) (\_ -> pure ()) $ \_ -> do
+    sendChunkBS "inside\n"
+    sendFlush
 
 -- | The CSRF token for this session.
 getFormR :: Handler Text

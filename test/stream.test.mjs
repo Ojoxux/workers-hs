@@ -100,3 +100,15 @@ test("Yesod respondSource with sendFlush streams", async () => {
   assert.ok(chunks[0].at - start < 250, `first chunk after ${chunks[0].at - start}ms`);
   assert.ok(chunks.length >= 3, `${chunks.length} chunks`);
 });
+
+test("a Yesod source that holds a resource streams to the end", async () => {
+  const logged = mock.method(console, "error", () => {});
+  try {
+    const env = { SESSION_KEY: "test-session-key-current-0123456789abcdef" };
+    const res = await yesod.fetch(new Request(`${BASE}/stream/resource`), env, fakeCtx().ctx);
+    assert.equal(await res.text(), "inside\n");
+    assert.equal(logged.mock.callCount(), 0, String(logged.mock.calls[0]?.arguments[0]));
+  } finally {
+    logged.mock.restore();
+  }
+});
