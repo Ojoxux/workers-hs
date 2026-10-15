@@ -29,6 +29,7 @@ import           Cloudflare.Workers.Context (Context, waitUntil)
 import           Cloudflare.Workers.Entry   (runWorker)
 import           Cloudflare.Workers.Env     (Env)
 import qualified Cloudflare.Workers.Fetch   as F
+import qualified Cloudflare.Workers.Fetch.Internal as FI
 import           Cloudflare.Workers.Internal.FFI (consoleError)
 import           Control.Concurrent         (forkIO, newEmptyMVar, putMVar,
                                              takeMVar, tryPutMVar)
@@ -39,7 +40,6 @@ import qualified Data.ByteString            as B
 import qualified Data.ByteString.Builder    as BB
 import qualified Data.ByteString.Char8      as BC
 import qualified Data.ByteString.Lazy       as BL
-import           Data.IORef                 (newIORef, readIORef, writeIORef)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
@@ -101,9 +101,13 @@ toWaiRequest :: F.Request -> Context -> IO Request
 toWaiRequest freq ctx = do
   let (secure, path, query) = splitUrl (F.url freq)
       hs = F.headers freq
-  -- Read in full: the Application sees the body as a single chunk.
-  body <- F.bytes (F.body freq)
-  reader <- chunkReader body
+  present <- FI.hasBody (F.body freq)
+  reader <- F.bodyReader (F.body freq)
+  let len = case lookup hContentLength hs >>= readMaybe . BC.unpack of
+        Just n -> KnownLength n
+        Nothing
+          | present -> ChunkedBody
+          | otherwise -> KnownLength 0
   pure
     Request
       { requestMethod = F.method freq
@@ -118,7 +122,7 @@ toWaiRequest freq ctx = do
       , queryString = parseQuery query
       , requestBody = reader
       , vault = Vault.insert contextKey ctx Vault.empty
-      , requestBodyLength = KnownLength (fromIntegral (B.length body))
+      , requestBodyLength = len
       , requestHeaderHost = lookup hHost hs
       , requestHeaderRange = lookup hRange hs
       , requestHeaderReferer = lookup hReferer hs
@@ -138,15 +142,6 @@ splitUrl u =
       path = if T.null p then "/" else p
       query = if q == "?" then "" else q
    in (scheme == "https", TE.encodeUtf8 path, TE.encodeUtf8 query)
-
--- | WAI's 'requestBody' hands back successive chunks and then empty strings.
-chunkReader :: B.ByteString -> IO (IO B.ByteString)
-chunkReader body = do
-  remaining <- newIORef body
-  pure $ do
-    chunk <- readIORef remaining
-    writeIORef remaining B.empty
-    pure chunk
 
 -- | WAI insists on a 'SockAddr'. Recover the client address from
 -- @CF-Connecting-IP@ when it parses as IPv4; otherwise a placeholder.
