@@ -67,7 +67,7 @@ haskell/yesod-cloudflare         Yesod integrations: WebCrypto session backend, 
 haskell/cloudflare-workers       typed Workers bindings: Fetch, Env, D1, Cache, Context, runWorker
 haskell/test-worker              a Worker that exercises cloudflare-workers, for the tests
 haskell/persistent-d1            a persistent backend for D1: Database.Persist.D1
-haskell/test-yesod               a Yesod app that exercises sessions, static files and persistent-d1, for the tests
+haskell/test-yesod               a Yesod app that exercises sessions, static files, persistent-d1 and streaming, for the tests
 haskell/demo-wai                 a bare WAI Application
 haskell/demo-yesod               a minimal Yesod application
 haskell/http-client-cloudflare   http-client Manager over fetch
@@ -138,6 +138,7 @@ npm run deploy       # wrangler deploy
 | [docs/constraints.md](docs/constraints.md) | Platform limits and the traps found along the way |
 | [docs/d1.md](docs/d1.md) | The D1 bindings: configuration, API, how values map, batches and errors |
 | [docs/cache.md](docs/cache.md) | The Cache API bindings: usage, what gets stored, errors and limits |
+| [docs/streaming.md](docs/streaming.md) | Streamed response and request bodies: `bodyStream`, `bodyReader`, WAI and Yesod, errors |
 | [docs/persistent-d1.md](docs/persistent-d1.md) | persistent on D1: usage, no transactions, the parameter limit, values and migrations |
 | [docs/yesod.md](docs/yesod.md) | The steps from a working WAI handler to a running Yesod application |
 | [docs/development.md](docs/development.md) | Inspecting the wasm module and the fast test loop |

@@ -63,6 +63,8 @@ The first instance also has a local D1 database (binding `DB` in `test/wrangler.
 and runs 21 D1 checks against it (see [d1.md](d1.md)). D1 runs only under
 `wrangler dev`: Node has no D1, so these checks are not in `test/cases.mjs`. For
 the same reason, the 3 Cache API checks (see [cache.md](cache.md)) run only here.
+Five streaming checks (see [streaming.md](streaming.md)) repeat Node's under
+workerd: three against this instance and two against the Yesod one.
 
 It also starts a second instance, `wrangler dev -c test/yesod-wrangler.toml`,
 and runs two session and CSRF checks against it, two static file checks

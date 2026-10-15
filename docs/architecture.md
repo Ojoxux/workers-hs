@@ -137,8 +137,9 @@ raw pointer sound — the same guarantee an `unsafe` C FFI call relies on.
 
 **Request bodies.** The reverse, and read lazily: a JavaScript body is not
 awaited when a `Request` or `Response` is converted, only when
-`Cloudflare.Workers.Fetch.bytes` (or `text`) is actually called, through an
-asynchronous (`safe`) import:
+`Cloudflare.Workers.Fetch.bytes` (or `text`, or a `bodyReader`; see
+[streaming.md](streaming.md)) is actually called, through an asynchronous
+(`safe`) import:
 
 ```haskell
 foreign import javascript safe "return new Uint8Array(await $1.arrayBuffer());"
@@ -148,9 +149,8 @@ foreign import javascript safe "return new Uint8Array(await $1.arrayBuffer());"
 Only the calling Haskell thread suspends on the promise. A second, synchronous
 import then copies the `Uint8Array` into a freshly allocated `ByteString`. A
 `cloudflare-workers` handler that never calls `bytes`/`text` never awaits the
-request body at all; `wai-handler-cloudflare`'s `toWaiRequest` calls `F.bytes`
-up front, so a WAI `Application` always sees the body read in full before it
-runs.
+request body at all; `wai-handler-cloudflare` gives a WAI `Application` a
+`bodyReader`, so each `requestBody` call awaits the next chunk.
 
 **Headers.** Encoded as a single NUL-separated string of alternating names and
 values. A NUL can never appear in an HTTP header, and this keeps a JSON library
