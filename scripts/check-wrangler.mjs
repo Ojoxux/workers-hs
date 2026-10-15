@@ -403,6 +403,16 @@ const cacheChecks = [
       "",
     ].join("\n"));
   }],
+  ["cache put in waitUntil after returning the response", async (p) => {
+    const k = `later${Date.now()}`;
+    expectEqual(p, "response", await (await send(`/cache/later/${k}`)).text(), "0123456789");
+    let state = "miss";
+    for (let i = 0; i < 20 && state !== "hit"; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      state = await (await send(`/cache/short/get/${k}`)).text();
+    }
+    expectEqual(p, "stored", state, "hit");
+  }],
   ["cache entries expire with max-age", async (p) => {
     const k = `short${Date.now()}`;
     await (await send(`/cache/short/put/${k}`)).text();

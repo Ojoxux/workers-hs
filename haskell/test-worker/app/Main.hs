@@ -37,6 +37,15 @@ route env req ctx =
   case segments (F.url req) of
     ["hello"] -> pure (ok "hello")
     ["cache", "flow", k] -> ok <$> cacheFlow env k
+    -- The docs' pattern: return a fetched response, store a copy afterwards.
+    ["cache", "later", k] -> do
+      c <- Cache.defaultCache
+      up <- Env.var env "UPSTREAM"
+      fetched <- F.fetch F.request {F.url = up <> "/sized"}
+      let resp = F.response 200 [("cache-control", "max-age=60")] (F.responseBody fetched)
+      copy <- F.cloneResponse resp
+      waitUntil ctx (Cache.put c (cacheKey k) copy)
+      pure resp
     ["cache", "short", "put", k] -> do
       c <- Cache.defaultCache
       Cache.put c (cacheKey k) (F.response 200 [("cache-control", "max-age=1")] (F.bodyText "short"))
