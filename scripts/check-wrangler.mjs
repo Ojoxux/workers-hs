@@ -395,6 +395,7 @@ const cacheChecks = [
       "hit: 200 hello x-a=1",
       "again: original=hello cached=200 hello x-a=1",
       "delete: (True,False) then miss",
+      "bad key: refused",
       "206: refused: Cannot cache response to a range request (206 Partial Content).",
       "vary: refused: Cannot cache response with 'Vary: *' header.",
       "set-cookie: miss",
@@ -403,7 +404,7 @@ const cacheChecks = [
       "",
     ].join("\n"));
   }],
-  ["cache put in waitUntil after returning the response", async (p) => {
+  ["cache putLater stores a response after returning it", async (p) => {
     const k = `later${Date.now()}`;
     expectEqual(p, "response", await (await send(`/cache/later/${k}`)).text(), "0123456789");
     let state = "miss";

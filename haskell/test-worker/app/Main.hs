@@ -37,14 +37,13 @@ route env req ctx =
   case segments (F.url req) of
     ["hello"] -> pure (ok "hello")
     ["cache", "flow", k] -> ok <$> cacheFlow env k
-    -- The docs' pattern: return a fetched response, store a copy afterwards.
+    -- Return a fetched response and store it after it is sent.
     ["cache", "later", k] -> do
       c <- Cache.defaultCache
       up <- Env.var env "UPSTREAM"
       fetched <- F.fetch F.request {F.url = up <> "/sized"}
       let resp = F.response 200 [("cache-control", "max-age=60")] (F.responseBody fetched)
-      copy <- F.cloneResponse resp
-      waitUntil ctx (Cache.put c (cacheKey k) copy)
+      Cache.putLater ctx c (cacheKey k) resp
       pure resp
     ["cache", "short", "put", k] -> do
       c <- Cache.defaultCache
@@ -277,6 +276,7 @@ cacheFlow env k = do
   deleted <- Cache.delete c (key "a")
   deletedTwice <- Cache.delete c (key "a")
   afterDelete <- Cache.match c (key "a") >>= described
+  badKey <- attempt (void (Cache.match c F.request))
   partial <- attempt (Cache.put c (key "p") (F.response 206 [] (F.bodyText "x")))
   varyAll <- attempt (Cache.put c (key "v") (F.response 200 [("vary", "*")] (F.bodyText "x")))
   Cache.put c (key "cookie") (for60 [("set-cookie", "a=b")] "x")
@@ -297,6 +297,7 @@ cacheFlow env k = do
     , "hit: " <> hit
     , "again: original=" <> againOriginal <> " cached=" <> againCached
     , "delete: " <> T.pack (show (deleted, deletedTwice)) <> " then " <> afterDelete
+    , "bad key: " <> T.takeWhile (/= ':') badKey
     , "206: " <> partial
     , "vary: " <> varyAll
     , "set-cookie: " <> cookie
