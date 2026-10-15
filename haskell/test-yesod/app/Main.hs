@@ -29,7 +29,9 @@ module Main (main) where
 
 import qualified Cloudflare.Workers.D1          as D1
 import qualified Cloudflare.Workers.Env         as Env
+import           Control.Concurrent             (threadDelay)
 import           Control.Exception              (SomeException, try, tryJust)
+import           Control.Monad                  (forM_)
 import           Data.ByteString                (ByteString)
 import qualified Data.ByteString                as B
 import           Data.Maybe                     (fromMaybe, maybeToList)
@@ -95,6 +97,7 @@ mkYesod "App" [parseRoutes|
 /static-url StaticUrlR GET
 /count CountR GET
 /large LargeR GET
+/stream StreamR GET
 /form  FormR  GET POST
 /persist/migration PersistMigrationR GET
 /persist/setup     PersistSetupR     GET
@@ -125,6 +128,14 @@ getLargeR :: Handler Text
 getLargeR = do
   setSessionBS "large" (B.replicate 5000 120)
   pure "set"
+
+-- | Three flushed chunks, 300 ms apart.
+getStreamR :: Handler TypedContent
+getStreamR = respondSource "text/plain" $
+  forM_ ["one\n", "two\n", "three\n"] $ \s -> do
+    sendChunkBS s
+    sendFlush
+    liftIO (threadDelay 300000)
 
 -- | The CSRF token for this session.
 getFormR :: Handler Text

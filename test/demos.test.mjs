@@ -47,7 +47,7 @@ test("demo-wai: HEAD", async () => {
   assert.equal((await send(wai, "/", { method: "HEAD" })).status, 200);
 });
 
-test("demo-wai: responseStream is buffered", async () => {
+test("demo-wai: responseStream", async () => {
   assert.deepEqual(await send(wai, "/stream"), { status: 200, text: "chunk one\nchunk two\n" });
 });
 

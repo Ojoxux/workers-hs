@@ -88,3 +88,15 @@ test("bodyReader after a read throws BodyAlreadyUsed", async () => {
   assert.equal(res.status, 500);
   assert.match(await res.text(), /body already used/);
 });
+
+const yesod = await loadWorker("test-yesod", { exposeErrors: true });
+
+test("Yesod respondSource with sendFlush streams", async () => {
+  const start = Date.now();
+  const env = { SESSION_KEY: "test-session-key-current-0123456789abcdef" };
+  const res = await yesod.fetch(new Request(`${BASE}/stream`), env, fakeCtx().ctx);
+  const chunks = await readChunks(res);
+  assert.equal(chunks.map((c) => c.text).join(""), "one\ntwo\nthree\n");
+  assert.ok(chunks[0].at - start < 250, `first chunk after ${chunks[0].at - start}ms`);
+  assert.ok(chunks.length >= 3, `${chunks.length} chunks`);
+});

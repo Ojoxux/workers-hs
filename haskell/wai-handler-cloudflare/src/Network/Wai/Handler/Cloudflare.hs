@@ -32,8 +32,7 @@ import qualified Data.ByteString            as B
 import qualified Data.ByteString.Builder    as BB
 import qualified Data.ByteString.Char8      as BC
 import qualified Data.ByteString.Lazy       as BL
-import           Data.IORef                 (modifyIORef', newIORef, readIORef,
-                                             writeIORef)
+import           Data.IORef                 (newIORef, readIORef, writeIORef)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
@@ -154,13 +153,8 @@ fromWaiResponse :: Response -> IO F.Response
 fromWaiResponse = \case
   ResponseBuilder st hs builder ->
     pure (bytesResponse st hs (BB.toLazyByteString builder))
-  ResponseStream st hs withBody -> do
-    -- Buffered, not streamed: the client sees nothing until the
-    -- StreamingBody finishes. See docs/wai-support.md.
-    acc <- newIORef mempty
-    withBody (\chunk -> modifyIORef' acc (<> chunk)) (pure ())
-    builder <- readIORef acc
-    pure (bytesResponse st hs (BB.toLazyByteString builder))
+  ResponseStream st hs withBody ->
+    F.response (statusCode st) hs <$> F.bodyStream withBody
   ResponseFile{} -> pure (unsupported "responseFile")
   ResponseRaw{} -> pure (unsupported "responseRaw")
 
