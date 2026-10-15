@@ -277,6 +277,23 @@ const persistChecks = [
     const bodies = await Promise.all(titles.map((t) => sendYesod(`/persist/insert/${t}`).then((r) => r.text())));
     titles.forEach((t, i) => { if (bodies[i] !== t) p.push(`${t} read back as ${bodies[i]}`); });
   }],
+  ["persistent upsertBy inserts, then updates the same row", async (p) => {
+    const t = `ups-${Date.now()}`;
+    const first = await (await sendYesod(`/persist/upsert/${t}`)).text();
+    const second = await (await sendYesod(`/persist/upsert/${t}`)).text();
+    const id = first.match(/^id=(\d+) /)?.[1];
+    expectEqual(p, "first", first, `id=${id} count=1`);
+    expectEqual(p, "second", second, `id=${id} count=2`);
+  }],
+  ["persistent upsertBy under concurrency is one atomic statement", async (p) => {
+    const t = `upsc-${Date.now()}`;
+    const rs = await Promise.all(Array.from({ length: 20 }, () => sendYesod(`/persist/upsert/${t}`)));
+    const bodies = await Promise.all(rs.map((r) => r.text()));
+    const failed = rs.filter((r) => r.status !== 200).length;
+    if (failed) p.push(`${failed} of 20 failed: ${bodies.find((_, i) => rs[i].status !== 200)?.slice(0, 120)}`);
+    const counts = bodies.map((b) => Number(b.match(/count=(\d+)/)?.[1])).sort((a, b) => a - b);
+    expectEqual(p, "counts", counts.join(","), Array.from({ length: 20 }, (_, i) => i + 1).join(","));
+  }],
   ["persistent field types round-trip", async (p) => {
     expectEqual(p, "body", await (await sendYesod("/persist/types")).text(), "ok");
   }],

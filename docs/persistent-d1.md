@@ -94,10 +94,11 @@ transfer db from to amount = do
 ```
 
 A single statement is atomic. `putMany`, `repsertMany` and `repsert` are each
-one statement, as in persistent-sqlite, so concurrent requests cannot
-interleave between their lookup and their write. `upsert` and `upsertBy` are
-not: they use persistent's default, a `getBy` followed by an `insert` or an
-`update`, and two requests can race between the two.
+one statement, as in persistent-sqlite, and so are `upsert` and `upsertBy`
+(`INSERT … ON CONFLICT DO UPDATE … RETURNING`, which persistent-sqlite does not
+have), so concurrent requests cannot interleave between a lookup and a write.
+The exception is `upsert` or `upsertBy` with an empty update list: persistent
+then falls back to a `getBy` followed by an `insert`, which can race.
 
 ## At most 100 parameters per statement
 
