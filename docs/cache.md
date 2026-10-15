@@ -46,8 +46,9 @@ A key is the request's method, URL and headers; its body is ignored.
 **Storing in `waitUntil`.** `waitUntil` runs its action after the handler has
 returned, when the runtime is already reading the returned response's body to
 send it. A `put` there can no longer copy that body, so use `putLater`, which
-copies it before calling `waitUntil`. Its errors go to `console.error`, as for
-any `waitUntil` action.
+copies it before calling `waitUntil`. An invalid key still throws from
+`putLater`, like `put`; the cache's refusals (non-`GET` key, `206`, `Vary: *`)
+happen later and go to `console.error`, as for any `waitUntil` action.
 
 ## What gets stored
 
