@@ -67,9 +67,10 @@ It also starts a second instance, `wrangler dev -c test/yesod-wrangler.toml`,
 and runs two session and CSRF checks against it, two static file checks
 (yesod-static URLs are served by Workers Static Assets, and a missing file
 reaches the Worker's 404; `[assets]` in `test/yesod-wrangler.toml`, see
-[yesod.md](yesod.md#static-files)), then 8 persistent checks
+[yesod.md](yesod.md#static-files)), then 11 persistent checks
 against its own local D1 (binding `DB` in `test/yesod-wrangler.toml`):
-migration, CRUD, ids of concurrent inserts, field type round trips, a unique
+migration, CRUD, ids of concurrent inserts, three `upsertBy` checks (insert then
+update, a generated column, concurrency), field type round trips, a unique
 constraint, bulk writes past 100 parameters, `createD1Pool` with
 `runSqlPool`, and a migration that rebuilds a table (see
 [persistent-d1.md](persistent-d1.md)). A third instance,

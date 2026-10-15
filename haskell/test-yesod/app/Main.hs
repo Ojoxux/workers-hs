@@ -41,7 +41,7 @@ import           Database.Persist
 import           Database.Persist.D1            (createD1Pool, d1MigrationSql,
                                                  putManyChunked, repsertManyChunked,
                                                  runD1)
-import           Database.Persist.Sql           (runSqlPool, toSqlKey)
+import           Database.Persist.Sql           (fromSqlKey, runSqlPool, toSqlKey)
 import           Database.Persist.TH
 import           Network.Wai.Handler.Cloudflare (runCloudflareWith)
 import           Text.Read                      (readMaybe)
@@ -62,6 +62,11 @@ Note
   blob ByteString
   UniqueTitle title
   deriving Show Eq
+Tag
+  name Text
+  shout Text generated=upper(name)
+  count Int
+  UniqueTagName name
 |]
 
 -- Two versions of one table, for a migration that changes it.
@@ -100,6 +105,8 @@ mkYesod "App" [parseRoutes|
 /persist/unique       PersistUniqueR GET
 /persist/bulk         PersistBulkR   GET
 /persist/pool         PersistPoolR   GET
+/persist/upsert/#Text PersistUpsertR GET
+/persist/upsert-generated/#Text PersistUpsertGeneratedR GET
 |]
 
 instance Yesod App where
@@ -172,6 +179,18 @@ getPersistCrudR = withDb $ \db -> runD1 db $ do
 
 sample :: Text -> Int -> Note
 sample t c = Note t Nothing c 0.5 False (UTCTime (fromGregorian 2026 10 3) 0) (fromGregorian 2026 10 3) ""
+
+-- | upsertBy on the title: inserts count 1, or adds 1 to the stored count.
+getPersistUpsertR :: Text -> Handler Text
+getPersistUpsertR t = withDb $ \db -> runD1 db $ do
+  Entity k n <- upsertBy (UniqueTitle t) (sample t 1) [NoteCount +=. 1]
+  pure ("id=" <> T.pack (show (fromSqlKey k)) <> " count=" <> T.pack (show (noteCount n)))
+
+-- | upsertBy on an entity with a generated column (shout = upper(name)).
+getPersistUpsertGeneratedR :: Text -> Handler Text
+getPersistUpsertGeneratedR t = withDb $ \db -> runD1 db $ do
+  Entity _ g <- upsertBy (UniqueTagName t) (Tag t "" 1) [TagCount +=. 1]
+  pure ("shout=" <> tagShout g <> " count=" <> T.pack (show (tagCount g)))
 
 -- | Insert a note titled after the path, then read it back by the returned key.
 getPersistInsertR :: Text -> Handler Text

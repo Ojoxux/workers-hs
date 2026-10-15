@@ -52,6 +52,9 @@ import           Data.Acquire                 (Acquire)
 import           Data.Conduit                 (ConduitM, yield)
 import           Data.Fixed                   (Pico)
 import           Data.IORef                   (newIORef)
+import           Data.List.NonEmpty           (NonEmpty)
+import           Data.Maybe                   (isNothing)
+import qualified Data.List.NonEmpty           as NE
 import           Data.Pool                    (Pool, defaultPoolConfig, newPool)
 import           Data.Text                    (Text)
 import qualified Data.Text                    as T
@@ -73,6 +76,7 @@ d1Backend db = do
       -- One statement for all rows, so concurrent requests cannot interleave
       -- between a lookup and a write. Past the parameter limit, see
       -- putManyChunked and repsertManyChunked.
+      setConnUpsertSql upsertSql $
       setConnPutManySql putManySql $
         setConnRepsertManySql repsertManySql $
           mkSqlBackend
@@ -108,6 +112,32 @@ insertReturning ent vals =
     (ISRInsertGet ins _, EntityIdField fd) ->
       ISRSingle (ins <> " RETURNING " <> escape (unFieldNameDB (fieldDB fd)))
     (other, _) -> other
+
+-- | The single statement persistent's upsertBy runs (with a non-empty update
+-- list): insert, or update the row that holds the same unique key, and return
+-- it. A lookup followed by a write would let concurrent requests interleave.
+-- Parameters: the record's fields, the update values, the unique key's values.
+-- The record's fields include generated columns, which cannot be inserted, so
+-- an inner SELECT takes every field and the INSERT keeps the others. SQLite
+-- needs a WHERE on an upsert's SELECT to parse it.
+upsertSql :: EntityDef -> NonEmpty (FieldNameHS, FieldNameDB) -> Text -> Text
+upsertSql ent uniqs updates =
+  T.concat
+    [ "INSERT INTO ", table, "(", T.intercalate "," insertCols, ")"
+    , " SELECT ", T.intercalate "," insertCols
+    , " FROM (SELECT ", T.intercalate "," ["? AS " <> c | c <- allCols], ") WHERE true"
+    , " ON CONFLICT (", T.intercalate "," (map (column . snd) keys), ")"
+    , " DO UPDATE SET ", updates
+    , " WHERE ", T.intercalate " AND " [table <> "." <> column f <> "=?" | (_, f) <- keys]
+    , " RETURNING ??"
+    ]
+  where
+    table = escape (unEntityNameDB (getEntityDBName ent))
+    allCols = map (column . fieldDB) (getEntityFields ent)
+    insertCols =
+      [column (fieldDB fd) | fd <- getEntityFields ent, isNothing (fieldGenerated fd)]
+    column = escape . unFieldNameDB
+    keys = NE.toList uniqs
 
 -- | Run persistent actions against this database.
 runD1 :: D1.D1Database -> SqlPersistT IO a -> IO a
