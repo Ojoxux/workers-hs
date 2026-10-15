@@ -59,6 +59,17 @@ route env req ctx =
         flush
         threadDelay 20000)
     ["stream", "endless-writes"] -> ok . T.pack . show <$> readIORef endlessWrites
+    ["stream", "chunks"] -> do
+      next <- F.bodyReader (F.body req)
+      let go n total = do
+            c <- next
+            if B.null c then pure (n, total) else go (n + 1) (total + B.length c)
+      (n, total) <- go (0 :: Int) 0
+      pure (ok (T.pack ("chunks=" <> show n <> " bytes=" <> show total)))
+    ["stream", "reader-after-read"] -> do
+      _ <- F.bytes (F.body req)
+      _ <- F.bodyReader (F.body req)
+      pure (ok "unreachable")
     ["stream", "bytes"] -> do
       b <- F.bodyStream (\write _ -> write "hello " >> write "stream")
       ok <$> F.text b

@@ -16,6 +16,7 @@ module Cloudflare.Workers.Fetch
   , bodyBytes
   , bodyText
   , bodyStream
+  , bodyReader
   , bytes
   , text
   , BodyAlreadyUsed (..)

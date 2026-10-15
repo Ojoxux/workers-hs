@@ -15,6 +15,8 @@ module Cloudflare.Workers.Fetch.Internal
   , bodyBytes
   , bodyText
   , bodyStream
+  , bodyReader
+  , hasBody
   , bytes
   , text
   , BodyAlreadyUsed (..)
@@ -43,8 +45,8 @@ import           Control.Monad                   (unless, void, when)
 import qualified Data.ByteString                 as B
 import qualified Data.ByteString.Builder         as BB
 import qualified Data.ByteString.Lazy            as BL
-import           Data.IORef                      (newIORef, readIORef,
-                                                  writeIORef)
+import           Data.IORef                      (atomicModifyIORef', newIORef,
+                                                  readIORef, writeIORef)
 import           Data.Text                       (Text)
 import qualified Data.Text                       as T
 import qualified Data.Text.Encoding              as TE
@@ -170,6 +172,41 @@ bytes (JSBody owner) = do
 -- | The body decoded as UTF-8; invalid bytes become U+FFFD.
 text :: Body -> IO Text
 text b = TE.decodeUtf8With TEE.lenientDecode <$> bytes b
+
+-- | Read a body chunk by chunk, as WAI's @requestBody@: each call returns the
+-- next chunk, then empty strings. A JavaScript body is read as it arrives and
+-- is used up once the reader is made.
+bodyReader :: Body -> IO (IO B.ByteString)
+bodyReader (BytesBody b) = do
+  rest <- newIORef b
+  pure (atomicModifyIORef' rest (\c -> (B.empty, c)))
+bodyReader (JSBody owner) = do
+  ensureUnused owner
+  stream <- js_bodyOf owner
+  absent <- js_isNull stream
+  if absent
+    then pure (pure B.empty)
+    else do
+      rd <- js_getReader stream
+      done <- newIORef False
+      let next = do
+            d <- readIORef done
+            if d
+              then pure B.empty
+              else do
+                v <- awaitJS (js_read rd)
+                end <- js_isNull v
+                if end
+                  then writeIORef done True >> pure B.empty
+                  else do
+                    bs <- fromJSBytes v
+                    if B.null bs then next else pure bs
+      pure next
+
+-- | Whether there is a body at all: 'False' for a JavaScript @null@ body.
+hasBody :: Body -> IO Bool
+hasBody (BytesBody b)  = pure (not (B.null b))
+hasBody (JSBody owner) = not <$> (js_bodyOf owner >>= js_isNull)
 
 ensureUnused :: JSVal -> IO ()
 ensureUnused owner = do
@@ -399,3 +436,13 @@ foreign import javascript safe "await $1.close();"
 
 foreign import javascript unsafe "$1.abort(new Error($2)).catch(() => {})"
   js_abort :: JSVal -> JSString -> IO ()
+
+foreign import javascript unsafe "$1 === null"
+  js_isNull :: JSVal -> IO Bool
+
+foreign import javascript unsafe "$1.getReader()"
+  js_getReader :: JSVal -> IO JSVal
+
+-- | safe: rejects when the stream errors, e.g. when the client goes away.
+foreign import javascript safe "const r = await $1.read(); return r.done ? null : r.value;"
+  js_read :: JSVal -> IO JSVal

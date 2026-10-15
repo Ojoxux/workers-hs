@@ -64,3 +64,27 @@ test("a cancelled reader stops the writer quietly", async () => {
 test("bytes reads a bodyStream", async () => {
   assert.equal(await (await send("/stream/bytes")).text(), "hello stream");
 });
+
+function chunkedBody(parts) {
+  return new ReadableStream({
+    start(c) {
+      for (const p of parts) c.enqueue(new TextEncoder().encode(p));
+      c.close();
+    },
+  });
+}
+
+test("bodyReader reads a request body chunk by chunk", async () => {
+  const res = await send("/stream/chunks", { method: "POST", body: chunkedBody(["ab", "cde", "f"]), duplex: "half" });
+  assert.equal(await res.text(), "chunks=3 bytes=6");
+});
+
+test("bodyReader of a bodyless request ends at once", async () => {
+  assert.equal(await (await send("/stream/chunks")).text(), "chunks=0 bytes=0");
+});
+
+test("bodyReader after a read throws BodyAlreadyUsed", async () => {
+  const res = await send("/stream/reader-after-read", { method: "POST", body: "x" });
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /body already used/);
+});
