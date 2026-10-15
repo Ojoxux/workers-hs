@@ -64,7 +64,7 @@ The limit is 64 MiB uncompressed, so size is not a constraint. Getting Yesod to
 ```
 haskell/wai-handler-cloudflare   the handler: Network.Wai.Handler.Cloudflare
 haskell/yesod-cloudflare         Yesod integrations: WebCrypto session backend, static files via Static Assets
-haskell/cloudflare-workers       typed Workers bindings: Fetch, Env, D1, Context, runWorker
+haskell/cloudflare-workers       typed Workers bindings: Fetch, Env, D1, Cache, Context, runWorker
 haskell/test-worker              a Worker that exercises cloudflare-workers, for the tests
 haskell/persistent-d1            a persistent backend for D1: Database.Persist.D1
 haskell/test-yesod               a Yesod app that exercises sessions, static files and persistent-d1, for the tests
@@ -137,6 +137,7 @@ npm run deploy       # wrangler deploy
 | [docs/shims.md](docs/shims.md) | The replaced packages, why the real ones cannot be built, how faithful each replacement is, and how patched packages differ |
 | [docs/constraints.md](docs/constraints.md) | Platform limits and the traps found along the way |
 | [docs/d1.md](docs/d1.md) | The D1 bindings: configuration, API, how values map, batches and errors |
+| [docs/cache.md](docs/cache.md) | The Cache API bindings: usage, what gets stored, errors and limits |
 | [docs/persistent-d1.md](docs/persistent-d1.md) | persistent on D1: usage, no transactions, the parameter limit, values and migrations |
 | [docs/yesod.md](docs/yesod.md) | The steps from a working WAI handler to a running Yesod application |
 | [docs/development.md](docs/development.md) | Inspecting the wasm module and the fast test loop |
