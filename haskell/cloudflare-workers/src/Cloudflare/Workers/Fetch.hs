@@ -25,6 +25,7 @@ module Cloudflare.Workers.Fetch
   , statusText
   , responseHeaders
   , responseBody
+  , cloneResponse
     -- * Sending
   , fetch
     -- * Exceptions
