@@ -12,3 +12,8 @@ GREETING = "hello from vars"
 binding = "DB"
 database_name = "cloudflare-workers-test"
 database_id = "00000000-0000-0000-0000-000000000000"
+
+# Local KV for scripts/check-wrangler.mjs; the id is a placeholder.
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000000000000000000000000000"
