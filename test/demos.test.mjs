@@ -43,6 +43,29 @@ test("demo-wai: POST body", async () => {
   assert.match(text, /^body: hello body$/m);
 });
 
+test("demo-wai: requestBodyLength from Content-Length", async () => {
+  const { text } = await send(wai, "/echo", { method: "POST", headers: { "Content-Length": "10" }, body: "hello body" });
+  assert.match(text, /^requestBodyLength: KnownLength 10$/m);
+});
+
+test("demo-wai: a streamed upload is chunked", async () => {
+  const body = new ReadableStream({
+    start(c) {
+      c.enqueue(new TextEncoder().encode("hello "));
+      c.enqueue(new TextEncoder().encode("body"));
+      c.close();
+    },
+  });
+  const { text } = await send(wai, "/echo", { method: "POST", body, duplex: "half" });
+  assert.match(text, /^requestBodyLength: ChunkedBody$/m);
+  assert.match(text, /^body: hello body$/m);
+});
+
+test("demo-wai: no body is KnownLength 0", async () => {
+  const { text } = await send(wai, "/echo");
+  assert.match(text, /^requestBodyLength: KnownLength 0$/m);
+});
+
 test("demo-wai: HEAD", async () => {
   assert.equal((await send(wai, "/", { method: "HEAD" })).status, 200);
 });

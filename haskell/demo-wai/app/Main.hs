@@ -65,6 +65,7 @@ describe req body =
     , line "isSecure" (BB.stringUtf8 (show (isSecure req)))
     , line "remoteHost" (BB.stringUtf8 (show (remoteHost req)))
     , line "bodyLength" (BB.stringUtf8 (show (BL.length body)))
+    , line "requestBodyLength" (BB.stringUtf8 (show (requestBodyLength req)))
     , line "body" (BB.lazyByteString body)
     , BB.stringUtf8 "requestHeaders:\n"
     , mconcat
