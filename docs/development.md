@@ -62,8 +62,9 @@ failure).
 The first instance also has a local D1 database (binding `DB` in `test/wrangler.toml`)
 and runs 21 D1 checks against it (see [d1.md](d1.md)). D1 runs only under
 `wrangler dev`: Node has no D1, so these checks are not in `test/cases.mjs`. For
-the same reason, the 3 Cache API checks (see [cache.md](cache.md)) and the KV check
-(see [kv.md](kv.md), against a local namespace) run only here.
+the same reason, the 3 Cache API checks (see [cache.md](cache.md)) the KV check and
+the R2 check (see [kv.md](kv.md) and [r2.md](r2.md), against a local namespace
+and bucket) run only here.
 Five streaming checks (see [streaming.md](streaming.md)) repeat Node's under
 workerd: three against this instance and two against the Yesod one.
 
