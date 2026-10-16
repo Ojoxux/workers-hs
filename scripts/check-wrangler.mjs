@@ -440,6 +440,8 @@ const kvChecks = [
       "ttl: [Just ()]",
       'pages: [["p/1","p/2"],["p/3","p/4"],["p/5"]]',
       'invalid: refused: "." is not allowed as a key name.',
+      "cacheTtl 0: refused: KV GET failed -1: refused: KV GET failed with metadata: refused: KV GET failed",
+      "limit 0: 5",
       "missing binding: env: NOPE is not set",
       "not kv: binding GREETING is not a KV namespace",
       "",

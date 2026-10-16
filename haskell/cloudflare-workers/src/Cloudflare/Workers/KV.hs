@@ -114,7 +114,8 @@ getBody ns key opts = getAs "stream" ns key opts >>= traverse (fmap JSBody . js_
 -- 'KVException' if the metadata does not decode.
 getWithMetadata :: FromJSON m => KVNamespace -> Text -> GetOptions -> IO (Maybe (B.ByteString, Maybe m))
 getWithMetadata (KVNamespace ns) key opts = do
-  r <- kvCall (js_getWithMetadata ns (textToJS key) (ttlToJS opts))
+  ttl <- optionalInt (cacheTtl opts)
+  r <- kvCall (js_getWithMetadata ns (textToJS key) ttl)
   absent <- js_isNull r
   if absent
     then pure Nothing
@@ -126,12 +127,10 @@ getWithMetadata (KVNamespace ns) key opts = do
 
 getAs :: Text -> KVNamespace -> Text -> GetOptions -> IO (Maybe JSVal)
 getAs ty (KVNamespace ns) key opts = do
-  v <- kvCall (js_get ns (textToJS key) (textToJS ty) (ttlToJS opts))
+  ttl <- optionalInt (cacheTtl opts)
+  v <- kvCall (js_get ns (textToJS key) (textToJS ty) ttl)
   absent <- js_isNull v
   pure (if absent then Nothing else Just v)
-
-ttlToJS :: GetOptions -> Int
-ttlToJS = fromMaybe 0 . cacheTtl
 
 -- ---------------------------------------------------------------------------
 -- Writing
@@ -205,7 +204,8 @@ data KeyInfo = KeyInfo
 
 list :: KVNamespace -> ListOptions -> IO ListResult
 list (KVNamespace ns) opts = do
-  raw <- kvCall (js_list ns (opt (prefix opts)) (fromMaybe 0 (limit opts)) (opt (cursor opts)))
+  n <- optionalInt (limit opts)
+  raw <- kvCall (js_list ns (opt (prefix opts)) n (opt (cursor opts)))
   decodeJSON (textFromJS raw)
     >>= maybe (throwIO (KVException "list returned nothing")) pure
     >>= either (throwIO . KVException . T.pack) pure . A.parseEither parseList
@@ -233,6 +233,11 @@ kvCall :: IO a -> IO a
 kvCall act = do
   result <- try (awaitJS act)
   either (throwIO . KVException . jsErrorMessage) pure result
+
+-- | A number, or @undefined@ for an option left out: an explicit value, even an
+-- invalid one, reaches the runtime.
+optionalInt :: Maybe Int -> IO JSVal
+optionalInt = maybe js_undefined js_int
 
 -- | @null@ (the empty string from JS) is 'Nothing'.
 decodeJSON :: Text -> IO (Maybe Value)
@@ -264,11 +269,11 @@ foreign import javascript unsafe "new Response($1)"
   js_responseOf :: JSVal -> IO JSVal
 
 -- | An @ArrayBuffer@ comes back as a @Uint8Array@, for 'fromJSBytes'.
-foreign import javascript safe "const o = { type: $3 }; if ($4 > 0) o.cacheTtl = $4; const v = await $1.get($2, o); return v instanceof ArrayBuffer ? new Uint8Array(v) : v;"
-  js_get :: JSVal -> JSString -> JSString -> Int -> IO JSVal
+foreign import javascript safe "const o = { type: $3 }; if ($4 !== undefined) o.cacheTtl = $4; const v = await $1.get($2, o); return v instanceof ArrayBuffer ? new Uint8Array(v) : v;"
+  js_get :: JSVal -> JSString -> JSString -> JSVal -> IO JSVal
 
-foreign import javascript safe "const o = { type: 'arrayBuffer' }; if ($3 > 0) o.cacheTtl = $3; const r = await $1.getWithMetadata($2, o); return r.value === null ? null : { value: new Uint8Array(r.value), metadata: r.metadata };"
-  js_getWithMetadata :: JSVal -> JSString -> Int -> IO JSVal
+foreign import javascript safe "const o = { type: 'arrayBuffer' }; if ($3 !== undefined) o.cacheTtl = $3; const r = await $1.getWithMetadata($2, o); return r.value === null ? null : { value: new Uint8Array(r.value), metadata: r.metadata };"
+  js_getWithMetadata :: JSVal -> JSString -> JSVal -> IO JSVal
 
 foreign import javascript safe "const o = {}; if ($4 === 1) o.expiration = $5; if ($4 === 2) o.expirationTtl = $5; if ($6 !== '') o.metadata = JSON.parse($6); await $1.put($2, $3 ?? new Uint8Array(0), o);"
   js_put :: JSVal -> JSString -> JSVal -> Int -> Int -> JSString -> IO ()
@@ -276,5 +281,11 @@ foreign import javascript safe "const o = {}; if ($4 === 1) o.expiration = $5; i
 foreign import javascript safe "await $1.delete($2);"
   js_delete :: JSVal -> JSString -> IO ()
 
-foreign import javascript safe "const o = {}; if ($2 !== '') o.prefix = $2; if ($3 > 0) o.limit = $3; if ($4 !== '') o.cursor = $4; return JSON.stringify(await $1.list(o));"
-  js_list :: JSVal -> JSString -> Int -> JSString -> IO JSString
+foreign import javascript safe "const o = {}; if ($2 !== '') o.prefix = $2; if ($3 !== undefined) o.limit = $3; if ($4 !== '') o.cursor = $4; return JSON.stringify(await $1.list(o));"
+  js_list :: JSVal -> JSString -> JSVal -> JSString -> IO JSString
+
+foreign import javascript unsafe "undefined"
+  js_undefined :: IO JSVal
+
+foreign import javascript unsafe "$1"
+  js_int :: Int -> IO JSVal

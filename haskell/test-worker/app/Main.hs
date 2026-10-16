@@ -339,6 +339,10 @@ kvFlow env run = do
         maybe (pure [names]) (fmap (names :) . pages . Just) (KV.nextCursor r)
   paged <- pages Nothing
   invalid <- refused (KV.put ns "." "x" KV.defaultPut >> pure "stored")
+  ttlZero <- refused (shown <$> KV.get ns (k "bytes") KV.defaultGet {KV.cacheTtl = Just 0})
+  ttlNegative <- refused (shown <$> KV.getText ns (k "bytes") KV.defaultGet {KV.cacheTtl = Just (-1)})
+  ttlZeroMeta <- refused (shown <$> (KV.getWithMetadata ns (k "meta") KV.defaultGet {KV.cacheTtl = Just 0} :: IO (Maybe (B.ByteString, Maybe A.Value))))
+  limitZero <- refused (shown . length . KV.keys <$> KV.list ns KV.defaultList {KV.prefix = Just (k "p/"), KV.limit = Just 0})
   missingBinding <- either (\e -> T.pack (displayException (e :: SomeException))) (const "found") <$> try (KV.kv env "NOPE")
   notKV <- either KV.kvMessage (const "kv") <$> try (KV.kv env "GREETING")
   pure $ T.unlines
@@ -352,6 +356,8 @@ kvFlow env run = do
     , "ttl: " <> shown (map (fmap (const ()) . KV.keyExpiration) (KV.keys ttl))
     , "pages: " <> shown paged
     , "invalid: " <> invalid
+    , "cacheTtl 0: " <> ttlZero <> " -1: " <> ttlNegative <> " with metadata: " <> ttlZeroMeta
+    , "limit 0: " <> limitZero
     , "missing binding: " <> missingBinding
     , "not kv: " <> notKV
     ]
