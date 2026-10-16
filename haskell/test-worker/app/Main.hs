@@ -89,6 +89,13 @@ route env req ctx =
     ["cache", "flow", k] -> ok <$> cacheFlow env k
     ["kv", "flow", run] -> ok <$> kvFlow env run
     ["r2", "flow", run] -> ok <$> r2Flow env run
+    -- Metadata headers as a client receives them.
+    ["r2", "disposition", run] -> do
+      b <- R2.r2 env "R2"
+      let meta = R2.defaultHttpMetadata {R2.contentDisposition = Just "inline; filename=\"caf\233.txt\""}
+      _ <- R2.put b (run <> "/d") (F.bodyText "d") R2.defaultPut {R2.putHttpMetadata = meta}
+      Just h <- R2.head b (run <> "/d")
+      pure (F.response 200 (R2.httpMetadataHeaders (R2.httpMetadata h)) (F.bodyText "d"))
     -- Return a fetched response and store it after it is sent.
     ["cache", "later", k] -> do
       c <- Cache.defaultCache
@@ -359,6 +366,7 @@ r2Flow env run = do
   afterMany <- R2.list b (under "l/x/")
   invalid <- refused (shown . fmap R2.size <$> R2.put b (T.replicate 1100 "k") (F.bodyText "x") R2.defaultPut)
   notR2 <- either R2.r2Message (const "r2") <$> try (R2.r2 env "GREETING")
+  let large = A.eitherDecodeStrict "{\"key\":\"big\",\"version\":\"v\",\"size\":5000000000,\"etag\":\"e\",\"httpEtag\":\"\\\"e\\\"\",\"uploaded\":0,\"range\":{\"offset\":4294967296,\"length\":3000000000}}" :: Either String R2.R2Object
   pure $ T.unlines
     [ "put: size=" <> shown (R2.size o) <> " etag quoted=" <> shown (R2.httpEtag o == "\"" <> R2.etag o <> "\"")
     , "get: " <> whole
@@ -381,6 +389,7 @@ r2Flow env run = do
     , "delete many: " <> shown (names afterMany)
     , "invalid: " <> invalid
     , "not r2: " <> notR2
+    , "large: " <> either T.pack (\x -> shown (R2.size x, R2.range x)) large
     ]
 kvFlow :: Env -> Text -> IO Text
 kvFlow env run = do

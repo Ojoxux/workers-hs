@@ -477,8 +477,16 @@ const r2Checks = [
       "delete many: []",
       "invalid: refused: put: The specified object name is not valid. ",
       "not r2: binding GREETING is not an R2 bucket",
+      "large: (5000000000,Just (RangeFrom 4294967296 (Just 3000000000)))",
       "",
     ].join("\n"));
+  }],
+  ["r2 metadata headers keep Latin-1 characters", async (p) => {
+    const res = await send(`/r2/disposition/r${Date.now()}`);
+    // workerd sends a header's non-ASCII characters as UTF-8; fetch reads the bytes as Latin-1.
+    const raw = Buffer.from(res.headers.get("content-disposition") ?? "", "latin1").toString("utf8");
+    expectEqual(p, "content-disposition", raw, 'inline; filename="café.txt"');
+    await res.text();
   }],
 ];
 

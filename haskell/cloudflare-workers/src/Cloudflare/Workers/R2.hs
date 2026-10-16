@@ -61,7 +61,8 @@ import qualified Data.ByteString.Char8             as BC
 import qualified Data.ByteString.Lazy              as BL
 import           Data.Map.Strict                   (Map)
 import qualified Data.Map.Strict                   as Map
-import           Data.Maybe                        (catMaybes, fromMaybe)
+import           Data.Int                          (Int64)
+import           Data.Maybe                        (catMaybes)
 import           Data.Text                         (Text)
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as TE
@@ -107,7 +108,7 @@ r2 env name =
 data R2Object = R2Object
   { key            :: Text
   , version        :: Text
-  , size           :: Int
+  , size           :: Int64
     -- ^ The whole object's size, also for a range read.
   , etag           :: Text
   , httpEtag       :: Text
@@ -136,7 +137,8 @@ defaultHttpMetadata = HttpMetadata Nothing Nothing Nothing Nothing Nothing Nothi
 
 -- | The headers @writeHttpMetadata@ would set: @content-type@,
 -- @content-language@, @content-disposition@, @content-encoding@,
--- @cache-control@ and @expires@.
+-- @cache-control@ and @expires@. Values are Latin-1, as header values are;
+-- a character above U+00FF cannot be sent and is cut to its low byte.
 httpMetadataHeaders :: HttpMetadata -> ResponseHeaders
 httpMetadataHeaders m =
   catMaybes
@@ -148,12 +150,13 @@ httpMetadataHeaders m =
     , ("expires",) . BC.pack . formatTime defaultTimeLocale "%a, %d %b %Y %H:%M:%S GMT" <$> cacheExpiry m
     ]
   where
-    enc = TE.encodeUtf8
+    -- Latin-1, as the header bridge reads bytes: what writeHttpMetadata sends.
+    enc = BC.pack . T.unpack
 
 -- | Bytes from an offset (to the end, or for a length), or the last bytes.
 data Range
-  = RangeFrom Int (Maybe Int)
-  | RangeSuffix Int
+  = RangeFrom Int64 (Maybe Int64)
+  | RangeSuffix Int64
   deriving (Eq, Show)
 
 -- | Preconditions: every one given must hold.
@@ -225,7 +228,7 @@ data PutOptions = PutOptions
   { putHttpMetadata   :: HttpMetadata
   , putCustomMetadata :: Map Text Text
   , putOnlyIf         :: Maybe Conditions
-  , putSize           :: Maybe Int
+  , putSize           :: Maybe Int64
     -- ^ The length of a streamed body that does not carry one: the stream is
     -- passed through a @FixedLengthStream@ of this size.
   }
@@ -239,7 +242,7 @@ put :: R2Bucket -> Text -> Body -> PutOptions -> IO (Maybe R2Object)
 put (R2Bucket b) k body opts = do
   v <- bodyToJS body
   o <- r2Call (js_options (encodeJSON (putJSON opts)) =<< jsNull)
-  r2Call (js_put b (textToJS k) v (fromMaybe (-1) (putSize opts)) o) >>= maybeObject
+  r2Call (js_put b (textToJS k) v (maybe (-1) fromIntegral (putSize opts)) o) >>= maybeObject
 
 -- | Remove an object; nothing happens if it is absent.
 delete :: R2Bucket -> Text -> IO ()
@@ -434,7 +437,7 @@ foreign import javascript safe "return await $1.head($2);"
 -- | A stream with a size goes through a FixedLengthStream, which R2 accepts
 -- as a stream of known length.
 foreign import javascript safe "let v = $3 ?? new Uint8Array(0); if ($4 >= 0 && v instanceof ReadableStream) { const f = new FixedLengthStream($4); v.pipeTo(f.writable).catch(() => {}); v = f.readable; } return await $1.put($2, v, $5);"
-  js_put :: JSVal -> JSString -> JSVal -> Int -> JSVal -> IO JSVal
+  js_put :: JSVal -> JSString -> JSVal -> Double -> JSVal -> IO JSVal
 
 foreign import javascript safe "await $1.delete($2);"
   js_delete :: JSVal -> JSString -> IO ()
