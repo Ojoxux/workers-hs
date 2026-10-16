@@ -13,8 +13,9 @@
 -- KV.getText ns \"greeting\" KV.defaultGet
 -- @
 --
--- KV is eventually consistent: a write can take up to 60 seconds to be seen
--- in other locations, and a key takes one write per second. See docs/kv.md.
+-- KV is eventually consistent: a write is not guaranteed to be read back at
+-- once, and can take 60 seconds or more to reach other locations. A key takes
+-- one write per second. See docs/kv.md.
 module Cloudflare.Workers.KV
   ( KVNamespace
   , kv
