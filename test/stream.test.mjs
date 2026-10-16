@@ -120,6 +120,8 @@ test("the request stays alive until a WAI Application has finished", async () =>
   assert.equal(pending.length, 1);
   let finished = false;
   pending[0].then(() => (finished = true));
+  await sleep(50);
+  assert.equal(finished, false, "the Application finished before its body was read");
   assert.equal(await res.text(), "inside\n");
   await pending[0];
   assert.ok(finished);
