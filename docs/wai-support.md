@@ -74,7 +74,7 @@ environment unless `envAsEnviron: false` is passed to `makeWorker`, so
 | `HEAD` | not special-cased; the runtime drops the body |
 | Yesod file uploads, gzip middleware | link, but rest on shimmed code paths; untested |
 | Persistent on PostgreSQL or MySQL | not covered; would need Workers' TCP `connect()` (or Hyperdrive). Persistent on D1 is supported; see [persistent-d1.md](persistent-d1.md) and [d1.md](d1.md) |
-| R2, Durable Objects, Cron / Queues | not covered yet. KV is supported; see [kv.md](kv.md) |
+| Durable Objects, Cron / Queues | not covered yet. KV and R2 are supported; see [kv.md](kv.md) and [r2.md](r2.md) |
 
 ## How streaming works
 
