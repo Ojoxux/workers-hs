@@ -15,7 +15,8 @@ pretending.
 | `rawPathInfo`, `pathInfo` | from `new URL(request.url).pathname` |
 | `rawQueryString`, `queryString` | from `.search` |
 | `requestHeaders` | names arrive lowercased, as the Fetch API normalizes them |
-| `requestBody`, `requestBodyLength` | read fully into memory, delivered as one chunk |
+| `requestBody` | read as it arrives, chunk by chunk; see [streaming.md](streaming.md) |
+| `requestBodyLength` | `KnownLength` from `Content-Length`; `ChunkedBody` for a body without one; `KnownLength 0` without a body |
 | `isSecure` | `protocol === 'https:'` |
 | `remoteHost` | recovered from `CF-Connecting-IP` when it parses as IPv4 |
 | `httpVersion` | always `HTTP/1.1` — Workers does not expose the real version |
@@ -34,10 +35,11 @@ carry one for service-binding, self-fetch and test requests.
 | Constructor | Notes |
 |---|---|
 | `responseLBS`, `responseBuilder` (`ResponseBuilder`) | fully supported |
-| `responseStream` (`ResponseStream`) | **buffered**: the body is accumulated in full before the `Response` is constructed |
+| `responseStream` (`ResponseStream`) | streamed: sent in chunks of about 16 KB, or at each `flush`; `respond` returns once the body is written. See [streaming.md](streaming.md) |
 
 Status codes and response headers pass through. `101`, `204`, `205` and `304` get
-a `null` body, because `new Response(body, ...)` rejects a body for those. A
+a `null` body, because `new Response(body, ...)` rejects a body for those; a
+`responseStream` with `204`, `205` or `304` does not run its writer. A
 header name or value containing NUL is rejected with a `500` rather than being
 split into extra headers.
 
@@ -68,23 +70,20 @@ environment unless `envAsEnviron: false` is passed to `makeWorker`, so
 | `responseFile` | `501`, with an explanatory body — there is no filesystem. Serve static files with Workers Static Assets; for yesod-static see [yesod.md](yesod.md#static-files) |
 | `responseRaw` | `501` — requires hijacking the connection |
 | WebSocket | not attempted; would need Workers' `WebSocketPair` instead of WAI |
-| True streaming | `responseStream` buffers, so no server-sent events and no progressive download |
-| Streaming request bodies | the body is read in full before the `Application` runs |
 | Trailers, HTTP/2 details, `Expect: 100-continue` | not represented |
 | `HEAD` | not special-cased; the runtime drops the body |
 | Yesod file uploads, gzip middleware | link, but rest on shimmed code paths; untested |
 | Persistent on PostgreSQL or MySQL | not covered; would need Workers' TCP `connect()` (or Hyperdrive). Persistent on D1 is supported; see [persistent-d1.md](persistent-d1.md) and [d1.md](d1.md) |
 | KV / R2, Durable Objects, Cron / Queues | not covered yet |
 
-## Where the limits come from
+## How streaming works
 
-`responseStream` buffering is the one worth understanding. The handler runs the
-`StreamingBody` to completion, accumulating into a `Builder`, and only then
-constructs the `Response`. That is enough for Yesod's `respondSource` and for
-anything that streams for convenience rather than for latency. It is not enough
-for server-sent events or a long-lived download, both of which need the client to
-see bytes before the producer finishes.
-
-Doing it properly means building a `ReadableStream` on the JavaScript side and
-having the Haskell writer push into it — feasible with the async JSFFI already in
-use, but out of scope here.
+The `Application` runs on its own Haskell thread. For `responseStream`, the
+handler returns a `Response` whose body is the readable side of a
+`TransformStream` as soon as `respond` is called, and the `StreamingBody` writes
+into it on another thread; `respond` returns once the body is written, so the
+application's finalizers run after it. The request is kept alive with
+`waitUntil` until that thread, finalizers included, has finished.
+`requestBody` awaits one chunk of the JavaScript request stream per call. Both
+rest on `bodyStream` and `bodyReader` in `Cloudflare.Workers.Fetch`; see
+[streaming.md](streaming.md).

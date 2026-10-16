@@ -111,9 +111,13 @@ application still writes exactly one `foreign export`.
 WAI's continuation-passing shape — `Application = Request -> (Response -> IO
 ResponseReceived) -> IO ResponseReceived` — cannot be observed from JavaScript,
 so `serve`, in `Network.Wai.Handler.Cloudflare` (haskell/wai-handler-cloudflare),
-passes the `Application` a continuation that captures the `Response` it is
-given into an `IORef`, then converts that into a `Cloudflare.Workers.Fetch.Response`.
-That conversion is what `runCloudflareWith` registers as the `Handler`;
+runs the `Application` on its own thread. The continuation it passes converts
+the `Response` it is given into a `Cloudflare.Workers.Fetch.Response` and hands
+that back through an `MVar` at once, then returns only when a streamed body has
+been written, so the application's finalizers run after the body (see
+[wai-support.md](wai-support.md#how-streaming-works)). `serve` registers that
+thread with `waitUntil`, so the request stays alive until it has finished.
+`serve` is what `runCloudflareWith` registers as the `Handler`;
 `Cloudflare.Workers.Entry.handleRequest` just calls it and hands the result
 back to JavaScript.
 
@@ -137,8 +141,9 @@ raw pointer sound — the same guarantee an `unsafe` C FFI call relies on.
 
 **Request bodies.** The reverse, and read lazily: a JavaScript body is not
 awaited when a `Request` or `Response` is converted, only when
-`Cloudflare.Workers.Fetch.bytes` (or `text`) is actually called, through an
-asynchronous (`safe`) import:
+`Cloudflare.Workers.Fetch.bytes` (or `text`, or a `bodyReader`; see
+[streaming.md](streaming.md)) is actually called, through an asynchronous
+(`safe`) import:
 
 ```haskell
 foreign import javascript safe "return new Uint8Array(await $1.arrayBuffer());"
@@ -148,9 +153,8 @@ foreign import javascript safe "return new Uint8Array(await $1.arrayBuffer());"
 Only the calling Haskell thread suspends on the promise. A second, synchronous
 import then copies the `Uint8Array` into a freshly allocated `ByteString`. A
 `cloudflare-workers` handler that never calls `bytes`/`text` never awaits the
-request body at all; `wai-handler-cloudflare`'s `toWaiRequest` calls `F.bytes`
-up front, so a WAI `Application` always sees the body read in full before it
-runs.
+request body at all; `wai-handler-cloudflare` gives a WAI `Application` a
+`bodyReader`, so each `requestBody` call awaits the next chunk.
 
 **Headers.** Encoded as a single NUL-separated string of alternating names and
 values. A NUL can never appear in an HTTP header, and this keeps a JSON library
