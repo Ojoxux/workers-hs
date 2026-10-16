@@ -82,6 +82,8 @@ The `Application` runs on its own Haskell thread. For `responseStream`, the
 handler returns a `Response` whose body is the readable side of a
 `TransformStream` as soon as `respond` is called, and the `StreamingBody` writes
 into it on another thread; `respond` returns once the body is written, so the
-application's finalizers run after it. `requestBody` awaits one chunk of the
-JavaScript request stream per call. Both rest on `bodyStream` and `bodyReader`
-in `Cloudflare.Workers.Fetch`; see [streaming.md](streaming.md).
+application's finalizers run after it. The request is kept alive with
+`waitUntil` until that thread, finalizers included, has finished.
+`requestBody` awaits one chunk of the JavaScript request stream per call. Both
+rest on `bodyStream` and `bodyReader` in `Cloudflare.Workers.Fetch`; see
+[streaming.md](streaming.md).

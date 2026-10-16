@@ -45,7 +45,8 @@ In a WAI application, `responseStream` (and Yesod's `respondSource`,
 `sendChunk`, `sendFlush`) does the same. `respond` returns only once the body is
 written, as under warp, so the application's `bracket` and `ResourceT`
 finalizers run after the body, and a Yesod source may hold resources
-(`bracketP`, `allocate`, `respondSourceDB`). `responseStream` with a `204`,
+(`bracketP`, `allocate`, `respondSourceDB`). The request stays alive (through
+`waitUntil`) until those finalizers have run. `responseStream` with a `204`,
 `205` or `304` sends no body and does not run the writer.
 
 ## Reading a body

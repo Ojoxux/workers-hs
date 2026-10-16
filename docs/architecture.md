@@ -111,9 +111,13 @@ application still writes exactly one `foreign export`.
 WAI's continuation-passing shape — `Application = Request -> (Response -> IO
 ResponseReceived) -> IO ResponseReceived` — cannot be observed from JavaScript,
 so `serve`, in `Network.Wai.Handler.Cloudflare` (haskell/wai-handler-cloudflare),
-passes the `Application` a continuation that captures the `Response` it is
-given into an `IORef`, then converts that into a `Cloudflare.Workers.Fetch.Response`.
-That conversion is what `runCloudflareWith` registers as the `Handler`;
+runs the `Application` on its own thread. The continuation it passes converts
+the `Response` it is given into a `Cloudflare.Workers.Fetch.Response` and hands
+that back through an `MVar` at once, then returns only when a streamed body has
+been written, so the application's finalizers run after the body (see
+[wai-support.md](wai-support.md#how-streaming-works)). `serve` registers that
+thread with `waitUntil`, so the request stays alive until it has finished.
+`serve` is what `runCloudflareWith` registers as the `Handler`;
 `Cloudflare.Workers.Entry.handleRequest` just calls it and hands the result
 back to JavaScript.
 
