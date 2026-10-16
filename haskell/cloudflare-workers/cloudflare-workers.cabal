@@ -23,7 +23,9 @@ library
     Cloudflare.Workers.Fetch.Internal
     Cloudflare.Workers.Internal
     Cloudflare.Workers.Internal.FFI
+    Cloudflare.Workers.KV
   build-depends:
+    , aeson
     , base             >=4.17 && <5
     , bytestring
     , case-insensitive
@@ -31,6 +33,7 @@ library
     , ghc-experimental
     , http-types
     , text
+    , time
 
   default-language: Haskell2010
   ghc-options:      -Wall

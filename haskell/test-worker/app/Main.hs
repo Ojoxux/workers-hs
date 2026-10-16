@@ -13,10 +13,13 @@ import           Cloudflare.Workers.Entry   (runWorker)
 import           Cloudflare.Workers.Env     (Env)
 import qualified Cloudflare.Workers.Env     as Env
 import qualified Cloudflare.Workers.Fetch   as F
+import qualified Cloudflare.Workers.KV      as KV
 import           Control.Concurrent         (threadDelay)
-import           Control.Exception          (try)
+import           Control.Exception          (SomeException, displayException,
+                                             try)
 import           Control.Monad              (forM_, join, replicateM_, void)
 import           Data.Bits                  (shiftL, shiftR, (.&.), (.|.))
+import qualified Data.Aeson                 as A
 import qualified Data.ByteString            as B
 import qualified Data.ByteString.Builder    as BB
 import qualified Data.ByteString.Char8      as BC
@@ -27,6 +30,7 @@ import           Data.IORef                 (IORef, newIORef, readIORef,
                                              writeIORef)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as TE
 import           Network.HTTP.Types         (parseQuery)
 import           System.Environment         (lookupEnv)
 import           System.IO.Unsafe           (unsafePerformIO)
@@ -80,6 +84,7 @@ route env req ctx =
       hit <- Cache.match c (cacheKey k)
       maybe (pure (ok "miss")) (fmap ok . F.text . F.responseBody) hit
     ["cache", "flow", k] -> ok <$> cacheFlow env k
+    ["kv", "flow", run] -> ok <$> kvFlow env run
     -- Return a fetched response and store it after it is sent.
     ["cache", "later", k] -> do
       c <- Cache.defaultCache
@@ -299,6 +304,63 @@ route env req ctx =
     _ -> pure (F.response 404 [] (F.bodyText "not found"))
 
 -- | Each Cache behaviour on keys under k, one line per check.
+
+kvFlow :: Env -> Text -> IO Text
+kvFlow env run = do
+  ns <- KV.kv env "KV"
+  let k s = run <> "/" <> s
+      shown :: Show a => a -> Text
+      shown = T.pack . show
+      refused act = either (\e -> "refused: " <> T.takeWhile (/= ':') (KV.kvMessage e)) id <$> try act
+      tuple :: KV.KVNamespace -> Text -> IO (Maybe (B.ByteString, Maybe (Int, Text)))
+      tuple n key = KV.getWithMetadata n key KV.defaultGet
+  KV.put ns (k "bytes") "\0\1\2" KV.defaultPut
+  bytesBack <- KV.get ns (k "bytes") KV.defaultGet
+  KV.put ns (k "text") (TE.encodeUtf8 "h\233llo") KV.defaultPut
+  textBack <- KV.getText ns (k "text") KV.defaultGet {KV.cacheTtl = Just 60}
+  streamed <- F.bodyStream (\write flush -> write "str" >> flush >> write "eam")
+  streamPut <- refused (KV.putBody ns (k "stream") streamed KV.defaultPut >> pure "stored")
+  streamBack <- KV.getBody ns (k "stream") KV.defaultGet >>= traverse F.text
+  missing <- KV.get ns (k "missing") KV.defaultGet
+  KV.delete ns (k "text")
+  KV.delete ns (k "text")
+  afterDelete <- KV.getText ns (k "text") KV.defaultGet
+  KV.put ns (k "meta") "v" KV.defaultPut {KV.metadata = Just (A.toJSON (1 :: Int, "a" :: Text))}
+  meta <- tuple ns (k "meta")
+  plain <- tuple ns (k "bytes")
+  KV.put ns (k "badmeta") "v" KV.defaultPut {KV.metadata = Just (A.object ["x" A..= (1 :: Int)])}
+  badMeta <- refused (shown <$> tuple ns (k "badmeta"))
+  KV.put ns (k "ttl") "t" KV.defaultPut {KV.expiration = Just (KV.ExpiresIn 3600)}
+  ttl <- KV.list ns KV.defaultList {KV.prefix = Just (k "ttl")}
+  forM_ [1 .. 5 :: Int] $ \i -> KV.put ns (k ("p/" <> shown i)) "x" KV.defaultPut
+  let pages c = do
+        r <- KV.list ns KV.defaultList {KV.prefix = Just (k "p/"), KV.limit = Just 2, KV.cursor = c}
+        let names = map (T.drop (T.length run + 1) . KV.keyName) (KV.keys r)
+        maybe (pure [names]) (fmap (names :) . pages . Just) (KV.nextCursor r)
+  paged <- pages Nothing
+  invalid <- refused (KV.put ns "." "x" KV.defaultPut >> pure "stored")
+  ttlZero <- refused (shown <$> KV.get ns (k "bytes") KV.defaultGet {KV.cacheTtl = Just 0})
+  ttlNegative <- refused (shown <$> KV.getText ns (k "bytes") KV.defaultGet {KV.cacheTtl = Just (-1)})
+  ttlZeroMeta <- refused (shown <$> (KV.getWithMetadata ns (k "meta") KV.defaultGet {KV.cacheTtl = Just 0} :: IO (Maybe (B.ByteString, Maybe A.Value))))
+  limitZero <- refused (shown . length . KV.keys <$> KV.list ns KV.defaultList {KV.prefix = Just (k "p/"), KV.limit = Just 0})
+  missingBinding <- either (\e -> T.pack (displayException (e :: SomeException))) (const "found") <$> try (KV.kv env "NOPE")
+  notKV <- either KV.kvMessage (const "kv") <$> try (KV.kv env "GREETING")
+  pure $ T.unlines
+    [ "bytes: " <> shown bytesBack
+    , "text: " <> maybe "-" id textBack
+    , "stream: " <> streamPut <> " " <> maybe "-" id streamBack
+    , "missing: " <> shown missing
+    , "delete: " <> maybe "-" id afterDelete
+    , "meta: " <> shown meta <> " plain: " <> shown plain
+    , "bad meta: " <> badMeta
+    , "ttl: " <> shown (map (fmap (const ()) . KV.keyExpiration) (KV.keys ttl))
+    , "pages: " <> shown paged
+    , "invalid: " <> invalid
+    , "cacheTtl 0: " <> ttlZero <> " -1: " <> ttlNegative <> " with metadata: " <> ttlZeroMeta
+    , "limit 0: " <> limitZero
+    , "missing binding: " <> missingBinding
+    , "not kv: " <> notKV
+    ]
 cacheFlow :: Env -> Text -> IO Text
 cacheFlow env k = do
   c <- Cache.defaultCache

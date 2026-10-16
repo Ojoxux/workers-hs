@@ -423,6 +423,32 @@ const cacheChecks = [
   }],
 ];
 
+// --- KV against the local namespace of test/wrangler.toml (workerd only:
+// Node has no KV) -----------------------------------------------------------
+
+const kvChecks = [
+  ["kv get, put, delete, metadata, list and refusals", async (p) => {
+    const body = await (await send(`/kv/flow/r${Date.now()}`)).text();
+    expectEqual(p, "flow", body, [
+      'bytes: Just "\\NUL\\SOH\\STX"',
+      "text: héllo",
+      "stream: stored stream",
+      "missing: Nothing",
+      "delete: -",
+      'meta: Just ("v",Just (1,"a")) plain: Just ("\\NUL\\SOH\\STX",Nothing)',
+      "bad meta: refused: Error in $",
+      "ttl: [Just ()]",
+      'pages: [["p/1","p/2"],["p/3","p/4"],["p/5"]]',
+      'invalid: refused: "." is not allowed as a key name.',
+      "cacheTtl 0: refused: KV GET failed -1: refused: KV GET failed with metadata: refused: KV GET failed",
+      "limit 0: 5",
+      "missing binding: env: NOPE is not set",
+      "not kv: binding GREETING is not a KV namespace",
+      "",
+    ].join("\n"));
+  }],
+];
+
 // --- streamed bodies ---------------------------------------------------------
 
 async function timedChunks(res) {
@@ -674,6 +700,15 @@ try {
     report(name, problems);
   }
   for (const [name, run] of streamChecks) {
+    const problems = [];
+    try {
+      await run(problems);
+    } catch (e) {
+      problems.push(`threw ${e?.stack ?? e}`);
+    }
+    report(name, problems);
+  }
+  for (const [name, run] of kvChecks) {
     const problems = [];
     try {
       await run(problems);
