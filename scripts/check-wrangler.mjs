@@ -458,6 +458,16 @@ const streamChecks = [
   ["a bodyStream response is stored with Cache.put", async (p) => {
     expectEqual(p, "body", await (await send(`/stream/cache/s${Date.now()}`)).text(), "streamed");
   }],
+  ["Yesod respondSource streams", async (p) => {
+    const chunks = await timedChunks(await sendYesod("/stream", { headers: { "accept-encoding": "identity" } }));
+    expectEqual(p, "body", chunks.map((c) => c.text).join(""), "one\ntwo\nthree\n");
+    if (chunks.length < 3 || chunks.at(-1).at - chunks[0].at < 500) {
+      p.push(`not spread out: ${JSON.stringify(chunks)}`);
+    }
+  }],
+  ["a Yesod source that holds a resource streams to the end", async (p) => {
+    expectEqual(p, "body", await (await sendYesod("/stream/resource")).text(), "inside\n");
+  }],
 ];
 
 // --- D1 against the local database of test/wrangler.toml (workerd only:

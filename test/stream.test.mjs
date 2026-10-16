@@ -88,3 +88,41 @@ test("bodyReader after a read throws BodyAlreadyUsed", async () => {
   assert.equal(res.status, 500);
   assert.match(await res.text(), /body already used/);
 });
+
+const yesod = await loadWorker("test-yesod", { exposeErrors: true });
+
+test("Yesod respondSource with sendFlush streams", async () => {
+  const start = Date.now();
+  const env = { SESSION_KEY: "test-session-key-current-0123456789abcdef" };
+  const res = await yesod.fetch(new Request(`${BASE}/stream`), env, fakeCtx().ctx);
+  const chunks = await readChunks(res);
+  assert.equal(chunks.map((c) => c.text).join(""), "one\ntwo\nthree\n");
+  assert.ok(chunks[0].at - start < 250, `first chunk after ${chunks[0].at - start}ms`);
+  assert.ok(chunks.length >= 3, `${chunks.length} chunks`);
+});
+
+test("a Yesod source that holds a resource streams to the end", async () => {
+  const logged = mock.method(console, "error", () => {});
+  try {
+    const env = { SESSION_KEY: "test-session-key-current-0123456789abcdef" };
+    const res = await yesod.fetch(new Request(`${BASE}/stream/resource`), env, fakeCtx().ctx);
+    assert.equal(await res.text(), "inside\n");
+    assert.equal(logged.mock.callCount(), 0, String(logged.mock.calls[0]?.arguments[0]));
+  } finally {
+    logged.mock.restore();
+  }
+});
+
+test("the request stays alive until a WAI Application has finished", async () => {
+  const env = { SESSION_KEY: "test-session-key-current-0123456789abcdef" };
+  const { ctx, pending } = fakeCtx();
+  const res = await yesod.fetch(new Request(`${BASE}/stream/resource`), env, ctx);
+  assert.equal(pending.length, 1);
+  let finished = false;
+  pending[0].then(() => (finished = true));
+  await sleep(50);
+  assert.equal(finished, false, "the Application finished before its body was read");
+  assert.equal(await res.text(), "inside\n");
+  await pending[0];
+  assert.ok(finished);
+});
