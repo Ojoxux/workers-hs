@@ -423,6 +423,43 @@ const cacheChecks = [
   }],
 ];
 
+// --- streamed bodies ---------------------------------------------------------
+
+async function timedChunks(res) {
+  const reader = res.body.getReader();
+  const out = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return out;
+    out.push({ at: Date.now(), text: new TextDecoder().decode(value) });
+  }
+}
+
+const streamChecks = [
+  ["bodyStream delivers chunks as they are flushed", async (p) => {
+    // wrangler dev gzips for clients that accept it, which buffers the chunks.
+    const chunks = await timedChunks(await send("/stream/slow", { headers: { "accept-encoding": "identity" } }));
+    expectEqual(p, "body", chunks.map((c) => c.text).join(""), "one\ntwo\nthree\n");
+    if (chunks.length < 3 || chunks.at(-1).at - chunks[0].at < 500) {
+      p.push(`not spread out: ${JSON.stringify(chunks)}`);
+    }
+  }],
+  ["bodyReader reads an uploaded stream", async (p) => {
+    const body = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode("abc"));
+        c.enqueue(new TextEncoder().encode("def"));
+        c.close();
+      },
+    });
+    const text = await (await send("/stream/chunks", { method: "POST", body, duplex: "half" })).text();
+    if (!/^chunks=\d+ bytes=6$/.test(text)) p.push(`body ${JSON.stringify(text)}`);
+  }],
+  ["a bodyStream response is stored with Cache.put", async (p) => {
+    expectEqual(p, "body", await (await send(`/stream/cache/s${Date.now()}`)).text(), "streamed");
+  }],
+];
+
 // --- D1 against the local database of test/wrangler.toml (workerd only:
 // Node has no D1) ----------------------------------------------------------
 
@@ -618,6 +655,15 @@ try {
     report(name, problems);
   }
   for (const [name, run] of cacheChecks) {
+    const problems = [];
+    try {
+      await run(problems);
+    } catch (e) {
+      problems.push(`threw ${e?.stack ?? e}`);
+    }
+    report(name, problems);
+  }
+  for (const [name, run] of streamChecks) {
     const problems = [];
     try {
       await run(problems);
