@@ -17,3 +17,8 @@ database_id = "00000000-0000-0000-0000-000000000000"
 [[kv_namespaces]]
 binding = "KV"
 id = "00000000000000000000000000000000"
+
+# Local R2 for scripts/check-wrangler.mjs.
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "workers-wai-test"
