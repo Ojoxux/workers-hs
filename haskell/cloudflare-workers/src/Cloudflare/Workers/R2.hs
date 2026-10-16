@@ -191,8 +191,10 @@ fromRequestHeaders hs = defaultGet {conditionHeaders = hs}
 data GetResult
   = Found R2Object Body
     -- ^ The object and its body, or the requested range of it.
-  | NotModified R2Object
-    -- ^ A condition did not hold: the object without its body.
+  | ConditionFailed R2Object
+    -- ^ A condition did not hold: the object without its body. R2 does not
+    -- say which, so a server cannot tell 304 (If-None-Match,
+    -- If-Modified-Since) from 412 (If-Match, If-Unmodified-Since) by this alone.
 
 -- | 'Nothing' if there is no object with this key.
 get :: R2Bucket -> Text -> GetOptions -> IO (Maybe GetResult)
@@ -209,7 +211,7 @@ get (R2Bucket b) k opts = do
       Just
         <$> if hasBody
           then Found obj . JSBody <$> js_responseOf r
-          else pure (NotModified obj)
+          else pure (ConditionFailed obj)
 
 -- | The object's metadata; 'Nothing' if there is none with this key.
 head :: R2Bucket -> Text -> IO (Maybe R2Object)

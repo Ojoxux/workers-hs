@@ -322,7 +322,7 @@ r2Flow env run = do
         Just (R2.Found o body) -> do
           t <- F.text body
           pure ("found " <> t <> " size=" <> shown (R2.size o) <> " range=" <> shown (R2.range o))
-        Just (R2.NotModified o) -> pure ("not modified size=" <> shown (R2.size o))
+        Just (R2.ConditionFailed o) -> pure ("condition failed size=" <> shown (R2.size o))
       expiry = UTCTime (fromGregorian 2030 1 2) 3600
       meta = R2.defaultHttpMetadata {R2.contentType = Just "text/plain", R2.cacheExpiry = Just expiry}
   Just o <- R2.put b (k "a") (F.bodyText "0123456789")
