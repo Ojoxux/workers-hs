@@ -25,7 +25,7 @@ module Network.Wai.Handler.Cloudflare
   , requestContext
   ) where
 
-import           Cloudflare.Workers.Context (Context)
+import           Cloudflare.Workers.Context (Context, waitUntil)
 import           Cloudflare.Workers.Entry   (runWorker)
 import           Cloudflare.Workers.Env     (Env)
 import qualified Cloudflare.Workers.Fetch   as F
@@ -74,9 +74,11 @@ serve app freq ctx = do
   -- The Application runs on its own thread and `respond` returns only once a
   -- streamed body is written, as under warp, so the app's finalizers (bracket,
   -- ResourceT) run after the body rather than before it. The response itself
-  -- is handed back as soon as `respond` is called.
+  -- is handed back as soon as `respond` is called; waitUntil keeps the
+  -- request alive until the thread, finalizers included, has finished.
   result <- newEmptyMVar
-  _ <- forkIO $ do
+  finished <- newEmptyMVar
+  _ <- forkIO $ flip finally (putMVar finished ()) $ do
     r <- try $ app req $ \res -> do
       (fres, written) <- fromWaiResponse res
       void (tryPutMVar result (Right fres))
@@ -88,6 +90,7 @@ serve app freq ctx = do
       Left (e :: SomeException) -> do
         sent <- tryPutMVar result (Left e)
         unless sent (consoleError ("wai-handler-cloudflare: after respond: " <> T.pack (displayException e)))
+  waitUntil ctx (takeMVar finished)
   takeMVar result >>= either throwIO pure
 
 -- ---------------------------------------------------------------------------

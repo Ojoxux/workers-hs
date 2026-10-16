@@ -112,3 +112,15 @@ test("a Yesod source that holds a resource streams to the end", async () => {
     logged.mock.restore();
   }
 });
+
+test("the request stays alive until a WAI Application has finished", async () => {
+  const env = { SESSION_KEY: "test-session-key-current-0123456789abcdef" };
+  const { ctx, pending } = fakeCtx();
+  const res = await yesod.fetch(new Request(`${BASE}/stream/resource`), env, ctx);
+  assert.equal(pending.length, 1);
+  let finished = false;
+  pending[0].then(() => (finished = true));
+  assert.equal(await res.text(), "inside\n");
+  await pending[0];
+  assert.ok(finished);
+});
