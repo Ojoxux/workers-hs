@@ -449,6 +449,39 @@ const kvChecks = [
   }],
 ];
 
+// --- R2 against the local bucket of test/wrangler.toml (workerd only: Node
+// has no R2) ------------------------------------------------------------------
+
+const r2Checks = [
+  ["r2 get, head, put, ranges, conditions, metadata, delete and list", async (p) => {
+    const body = await (await send(`/r2/flow/r${Date.now()}`)).text();
+    expectEqual(p, "flow", body, [
+      "put: size=10 etag quoted=True",
+      "get: found 0123456789 size=10 range=Just (RangeFrom 0 (Just 10))",
+      "range: found 234 size=10 range=Just (RangeFrom 2 (Just 3))",
+      "suffix: found 6789 size=10 range=Just (RangeFrom 6 (Just 4))",
+      "range header: found 01 size=10 range=Just (RangeFrom 0 (Just 2))",
+      "if-none-match: not modified size=10",
+      "etag matches: found 0123456789 size=10 range=Just (RangeFrom 0 (Just 10))",
+      "etag mismatch: not modified size=10",
+      'head: HttpMetadata {contentType = Just "text/plain", contentLanguage = Nothing, contentDisposition = Nothing, contentEncoding = Nothing, cacheControl = Nothing, cacheExpiry = Just 2030-01-02 01:00:00 UTC} fromList [("owner","ada")]',
+      'headers: [("content-type","text/plain"),("expires","Wed, 02 Jan 2030 01:00:00 GMT")]',
+      "missing: missing head: Nothing",
+      "conditional put: Nothing",
+      "sized stream: Just 6 found stream size=6 range=Just (RangeFrom 0 (Just 6))",
+      "unsized stream: refused: Provided readable stream must have a known length ",
+      "delete: Nothing",
+      'delimiter: ["l/z"] ["l/x/","l/y/"]',
+      'pages: [["l/x/1","l/x/2"],["l/y/1","l/z"]]',
+      'list metadata: [Nothing] [(Just "text/plain",fromList [("owner","ada")])]',
+      "delete many: []",
+      "invalid: refused: put: The specified object name is not valid. ",
+      "not r2: binding GREETING is not an R2 bucket",
+      "",
+    ].join("\n"));
+  }],
+];
+
 // --- streamed bodies ---------------------------------------------------------
 
 async function timedChunks(res) {
@@ -709,6 +742,15 @@ try {
     report(name, problems);
   }
   for (const [name, run] of kvChecks) {
+    const problems = [];
+    try {
+      await run(problems);
+    } catch (e) {
+      problems.push(`threw ${e?.stack ?? e}`);
+    }
+    report(name, problems);
+  }
+  for (const [name, run] of r2Checks) {
     const problems = [];
     try {
       await run(problems);

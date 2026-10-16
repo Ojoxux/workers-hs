@@ -24,11 +24,13 @@ library
     Cloudflare.Workers.Internal
     Cloudflare.Workers.Internal.FFI
     Cloudflare.Workers.KV
+    Cloudflare.Workers.R2
   build-depends:
     , aeson
     , base             >=4.17 && <5
     , bytestring
     , case-insensitive
+    , containers
     -- GHC.Wasm.Prim: ties the package to GHC's wasm backend.
     , ghc-experimental
     , http-types

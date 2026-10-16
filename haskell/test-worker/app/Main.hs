@@ -14,6 +14,7 @@ import           Cloudflare.Workers.Env     (Env)
 import qualified Cloudflare.Workers.Env     as Env
 import qualified Cloudflare.Workers.Fetch   as F
 import qualified Cloudflare.Workers.KV      as KV
+import qualified Cloudflare.Workers.R2      as R2
 import           Control.Concurrent         (threadDelay)
 import           Control.Exception          (SomeException, displayException,
                                              try)
@@ -26,11 +27,13 @@ import qualified Data.ByteString.Char8      as BC
 import           Data.CaseInsensitive       (original)
 import           Data.Char                  (ord)
 import           Data.Int                   (Int64)
+import qualified Data.Map.Strict            as Map
 import           Data.IORef                 (IORef, newIORef, readIORef,
                                              writeIORef)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
+import           Data.Time                  (UTCTime (..), fromGregorian)
 import           Network.HTTP.Types         (parseQuery)
 import           System.Environment         (lookupEnv)
 import           System.IO.Unsafe           (unsafePerformIO)
@@ -85,6 +88,7 @@ route env req ctx =
       maybe (pure (ok "miss")) (fmap ok . F.text . F.responseBody) hit
     ["cache", "flow", k] -> ok <$> cacheFlow env k
     ["kv", "flow", run] -> ok <$> kvFlow env run
+    ["r2", "flow", run] -> ok <$> r2Flow env run
     -- Return a fetched response and store it after it is sent.
     ["cache", "later", k] -> do
       c <- Cache.defaultCache
@@ -305,6 +309,79 @@ route env req ctx =
 
 -- | Each Cache behaviour on keys under k, one line per check.
 
+
+r2Flow :: Env -> Text -> IO Text
+r2Flow env run = do
+  b <- R2.r2 env "R2"
+  let k s = run <> "/" <> s
+      shown :: Show a => a -> Text
+      shown = T.pack . show
+      refused act = either (\e -> "refused: " <> T.takeWhile (/= '(') (R2.r2Message e)) id <$> try act
+      describe = \case
+        Nothing -> pure "missing"
+        Just (R2.Found o body) -> do
+          t <- F.text body
+          pure ("found " <> t <> " size=" <> shown (R2.size o) <> " range=" <> shown (R2.range o))
+        Just (R2.NotModified o) -> pure ("not modified size=" <> shown (R2.size o))
+      expiry = UTCTime (fromGregorian 2030 1 2) 3600
+      meta = R2.defaultHttpMetadata {R2.contentType = Just "text/plain", R2.cacheExpiry = Just expiry}
+  Just o <- R2.put b (k "a") (F.bodyText "0123456789")
+    R2.defaultPut {R2.putHttpMetadata = meta, R2.putCustomMetadata = Map.fromList [("owner", "ada")]}
+  whole <- R2.get b (k "a") R2.defaultGet >>= describe
+  ranged <- R2.get b (k "a") R2.defaultGet {R2.getRange = Just (R2.RangeFrom 2 (Just 3))} >>= describe
+  suffix <- R2.get b (k "a") R2.defaultGet {R2.getRange = Just (R2.RangeSuffix 4)} >>= describe
+  headerRange <- R2.get b (k "a") (R2.fromRequestHeaders [("range", "bytes=0-1")]) >>= describe
+  ifNoneMatch <- R2.get b (k "a") (R2.fromRequestHeaders [("if-none-match", TE.encodeUtf8 (R2.httpEtag o))]) >>= describe
+  matches <- R2.get b (k "a") R2.defaultGet {R2.getOnlyIf = Just R2.noConditions {R2.etagMatches = Just (R2.etag o)}} >>= describe
+  mismatch <- R2.get b (k "a") R2.defaultGet {R2.getOnlyIf = Just R2.noConditions {R2.etagMatches = Just "nope"}} >>= describe
+  Just h <- R2.head b (k "a")
+  missing <- R2.get b (k "missing") R2.defaultGet >>= describe
+  missingHead <- R2.head b (k "missing")
+  condPut <- R2.put b (k "a") (F.bodyText "x") R2.defaultPut {R2.putOnlyIf = Just R2.noConditions {R2.etagDoesNotMatch = Just (R2.etag o)}}
+  s1 <- F.bodyStream (\write flush -> write "str" >> flush >> write "eam")
+  sized <- refused (shown . fmap R2.size <$> R2.put b (k "s") s1 R2.defaultPut {R2.putSize = Just 6})
+  sizedBack <- R2.get b (k "s") R2.defaultGet >>= describe
+  s2 <- F.bodyStream (\write _ -> write "x")
+  unsized <- refused (shown . fmap R2.size <$> R2.put b (k "u") s2 R2.defaultPut)
+  R2.delete b (k "s")
+  afterDelete <- R2.head b (k "s")
+  forM_ ["l/x/1", "l/x/2", "l/y/1", "l/z"] $ \n -> R2.put b (k n) (F.bodyText n) R2.defaultPut
+  let names = map (T.drop (T.length run + 1) . R2.key) . R2.objects
+      under p = R2.defaultList {R2.prefix = Just (k p)}
+  grouped <- R2.list b (under "l/") {R2.delimiter = Just "/"}
+  let pages c = do
+        r <- R2.list b (under "l/") {R2.limit = Just 2, R2.cursor = c}
+        maybe (pure [names r]) (fmap (names r :) . pages . Just) (R2.nextCursor r)
+  paged <- pages Nothing
+  bare <- R2.list b (under "a")
+  full <- R2.list b (under "a") {R2.includeHttpMetadata = True, R2.includeCustomMetadata = True}
+  R2.deleteMany b [k "l/x/1", k "l/x/2"]
+  afterMany <- R2.list b (under "l/x/")
+  invalid <- refused (shown . fmap R2.size <$> R2.put b (T.replicate 1100 "k") (F.bodyText "x") R2.defaultPut)
+  notR2 <- either R2.r2Message (const "r2") <$> try (R2.r2 env "GREETING")
+  pure $ T.unlines
+    [ "put: size=" <> shown (R2.size o) <> " etag quoted=" <> shown (R2.httpEtag o == "\"" <> R2.etag o <> "\"")
+    , "get: " <> whole
+    , "range: " <> ranged
+    , "suffix: " <> suffix
+    , "range header: " <> headerRange
+    , "if-none-match: " <> ifNoneMatch
+    , "etag matches: " <> matches
+    , "etag mismatch: " <> mismatch
+    , "head: " <> shown (R2.httpMetadata h) <> " " <> shown (R2.customMetadata h)
+    , "headers: " <> shown (R2.httpMetadataHeaders (R2.httpMetadata h))
+    , "missing: " <> missing <> " head: " <> shown (fmap R2.key missingHead)
+    , "conditional put: " <> shown (fmap R2.size condPut)
+    , "sized stream: " <> sized <> " " <> sizedBack
+    , "unsized stream: " <> unsized
+    , "delete: " <> shown (fmap R2.key afterDelete)
+    , "delimiter: " <> shown (names grouped) <> " " <> shown (map (T.drop (T.length run + 1)) (R2.delimitedPrefixes grouped))
+    , "pages: " <> shown paged
+    , "list metadata: " <> shown (map (R2.contentType . R2.httpMetadata) (R2.objects bare)) <> " " <> shown (map (\x -> (R2.contentType (R2.httpMetadata x), R2.customMetadata x)) (R2.objects full))
+    , "delete many: " <> shown (names afterMany)
+    , "invalid: " <> invalid
+    , "not r2: " <> notR2
+    ]
 kvFlow :: Env -> Text -> IO Text
 kvFlow env run = do
   ns <- KV.kv env "KV"
