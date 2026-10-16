@@ -79,8 +79,9 @@ allKeys ns p = go Nothing
 
 ## Consistency and limits
 
-- **Eventually consistent.** A write is seen at once in the location that
-  made it, and within 60 seconds (or the readers' `cacheTtl`) elsewhere.
+- **Eventually consistent.** A write is usually, but not certainly, seen at once
+  in the location that made it; elsewhere it can take 60 seconds or more (or
+  the readers' `cacheTtl`). Do not rely on reading your own write.
 - **One write per second per key.** More throws `KVException` (KV answers 429).
 - Keys: at most 512 bytes, not empty, `.` or `..`.
 - Values: at most 25 MiB. Metadata: at most 1024 bytes.
