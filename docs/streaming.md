@@ -84,10 +84,14 @@ it has no body.
 
 ## Compression
 
-`wrangler dev` gzips a response for a client that sends
-`Accept-Encoding: gzip`, and the gzipped chunks then arrive together. To see
-chunks as they are flushed locally, request `Accept-Encoding: identity` (curl
-sends no `Accept-Encoding` by default).
+On Cloudflare, a compressed response still streams: with `text/plain` or
+`application/json` and gzip, Brotli or zstd, each flushed chunk reached the
+client on time. `text/event-stream` is not compressed.
+
+`wrangler dev` differs: it gzips a response for a client that sends
+`Accept-Encoding: gzip`, and the chunks then arrive together. To see them as
+they are flushed locally, request `Accept-Encoding: identity` (curl sends no
+`Accept-Encoding` by default).
 
 ## Testing
 
