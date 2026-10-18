@@ -13,7 +13,13 @@ description:
   so 'System.Entropy.getEntropy' returns genuine cryptographic randomness.
 
 license:         BSD-3-Clause
-author:          workers-wai PoC
+license-file:    LICENSE
+author:          Jou Okuyama
+maintainer:      ojoxux@gmail.com
+copyright:       2026 Jou Okuyama
+category:        Cryptography
+homepage:        https://github.com/Ojoxux/workers-wai
+bug-reports:     https://github.com/Ojoxux/workers-wai/issues
 build-type:      Simple
 
 library
@@ -26,3 +32,8 @@ library
 
   default-language: Haskell2010
   ghc-options:      -Wall
+
+source-repository head
+  type:     git
+  location: https://github.com/Ojoxux/workers-wai
+  subdir:   haskell/shims/entropy

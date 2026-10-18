@@ -144,3 +144,8 @@ npm run deploy       # wrangler deploy
 | [docs/persistent-d1.md](docs/persistent-d1.md) | persistent on D1: usage, no transactions, the parameter limit, values and migrations |
 | [docs/yesod.md](docs/yesod.md) | The steps from a working WAI handler to a running Yesod application |
 | [docs/development.md](docs/development.md) | Inspecting the wasm module and the fast test loop |
+
+## License
+
+BSD-3-Clause; see [LICENSE](LICENSE). The patched packages under
+`haskell/vendor/` keep their own licenses, in each package's directory.

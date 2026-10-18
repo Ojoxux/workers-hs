@@ -8,6 +8,13 @@ description:
   there are no sockets. TLS is handled by fetch; no tls package is involved.
 
 license:         BSD-3-Clause
+license-file:    LICENSE
+author:          Jou Okuyama
+maintainer:      ojoxux@gmail.com
+copyright:       2026 Jou Okuyama
+category:        Network
+homepage:        https://github.com/Ojoxux/workers-wai
+bug-reports:     https://github.com/Ojoxux/workers-wai/issues
 build-type:      Simple
 
 library
@@ -26,3 +33,8 @@ library
 
   default-language: Haskell2010
   ghc-options:      -Wall
+
+source-repository head
+  type:     git
+  location: https://github.com/Ojoxux/workers-wai
+  subdir:   haskell/http-client-cloudflare
