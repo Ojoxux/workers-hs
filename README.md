@@ -144,6 +144,7 @@ npm run deploy       # wrangler deploy
 | [docs/persistent-d1.md](docs/persistent-d1.md) | persistent on D1: usage, no transactions, the parameter limit, values and migrations |
 | [docs/yesod.md](docs/yesod.md) | The steps from a working WAI handler to a running Yesod application |
 | [docs/development.md](docs/development.md) | Inspecting the wasm module and the fast test loop |
+| [docs/releasing.md](docs/releasing.md) | Cutting a release: the tag, workers-wai.project, and keeping it in step with cabal.project |
 
 ## License
 
