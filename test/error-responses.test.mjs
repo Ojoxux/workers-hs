@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { makeWorker } from "../worker/src/runtime.mjs";
+import { makeWorker } from "../runtime/runtime.mjs";
 import { BASE, fakeCtx, loadWasm, loadWorker } from "./harness.mjs";
 
 /** Run `fn` with console.error captured; returns [result, logged lines]. */

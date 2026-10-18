@@ -16,8 +16,10 @@ tagged commit's `workers-wai.project` must name that tag.
 1. Pick the version. Until 1.0, a change that breaks a project bumps the minor
    version.
 2. On a branch, set `tag: vX.Y.Z` in `workers-wai.project` and the version in
-   the import line at its top.
-3. Check that the file still matches `cabal.project` and pins the new tag:
+   the import line at its top, and `"version": "X.Y.Z"` in
+   `runtime/package.json`.
+3. Check that the file still matches `cabal.project`, pins the new tag, and
+   that the npm version matches:
 
    ```sh
    node scripts/check-project.mjs vX.Y.Z
@@ -29,6 +31,16 @@ tagged commit's `workers-wai.project` must name that tag.
    git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
+
+5. Publish the JavaScript runtime from the tagged commit:
+
+   ```sh
+   cd runtime
+   npm publish
+   ```
+
+   The package is `workers-wai`: `makeWorker` and the WASI shim, which a
+   project's worker entry imports.
 
 Between releases, `main`'s `workers-wai.project` still names the last tag, so
 importing it from `main` builds the last release, not `main`.

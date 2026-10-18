@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import { gzipSync } from "node:zlib";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { makeWorker } from "../worker/src/runtime.mjs";
+import { makeWorker } from "../runtime/runtime.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 

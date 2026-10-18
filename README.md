@@ -21,8 +21,8 @@ handler is also just a function, so a small adapter is enough to connect them.
 ```
 
 The Haskell code is compiled by GHC's wasm backend to a wasm32-wasi reactor
-module. `worker/src/index.mjs` delegates to `makeWorker` in
-`worker/src/runtime.mjs`, which instantiates the module once per isolate and
+module. `worker/src/index.mjs` delegates to `makeWorker` from the npm package
+`workers-wai` (`runtime/`), which instantiates the module once per isolate and
 then calls it for every fetch event.
 
 ## Status
@@ -74,7 +74,8 @@ haskell/http-client-cloudflare   http-client Manager over fetch
 haskell/test-vendor              checks the vendored crypto stack against published vectors
 haskell/vendor/                  Hackage packages patched to build for wasm (crypton, memory, ...)
 haskell/shims/                   stand-ins for packages with no wasm build (network, entropy)
-worker/                          the Cloudflare Worker (JavaScript + WASI shim)
+runtime/                         the npm package workers-wai: makeWorker and the WASI shim
+worker/                          the demo Worker (wrangler.toml and its entry point)
 scripts/                         build, test, inspect and wrangler-check helpers
 ```
 
