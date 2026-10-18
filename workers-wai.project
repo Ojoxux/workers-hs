@@ -1,0 +1,38 @@
+-- Import this from a project's cabal.project to build against workers-wai:
+--
+--   import: https://raw.githubusercontent.com/Ojoxux/workers-wai/v0.1.0/workers-wai.project
+--
+-- It brings the libraries, the shims and patched packages that stand in for
+-- Hackage packages that do not build for wasm32-wasi (docs/shims.md,
+-- haskell/vendor/README.md), and the constraints and flags they need. Keep the
+-- flags and constraints in step with cabal.project.
+
+source-repository-package
+  type: git
+  location: https://github.com/Ojoxux/workers-wai
+  tag: v0.1.0
+  subdir:
+    haskell/cloudflare-workers
+    haskell/wai-handler-cloudflare
+    haskell/yesod-cloudflare
+    haskell/http-client-cloudflare
+    haskell/persistent-d1
+    haskell/shims/network
+    haskell/shims/entropy
+    haskell/vendor/basement-0.0.16
+    haskell/vendor/memory-0.18.0
+    haskell/vendor/cborg-0.2.10.0
+    haskell/vendor/crypton-1.0.6
+    haskell/vendor/xml-conduit-1.10.1.0
+    haskell/vendor/persistent-sqlite-2.13.3.1
+
+package warp
+  flags: -x509
+
+constraints:
+  crypton ==1.0.6,
+  tls ==2.1.8,
+  crypton-connection ==0.4.5,
+  crypton-x509 ==1.7.7,
+  hoauth2 ==2.14.3,
+  yesod-auth-oauth2 ==0.7.4.0
