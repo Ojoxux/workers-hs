@@ -3,8 +3,8 @@
 Everything below is verified end to end, by `scripts/test.sh` and by `curl`
 against `wrangler dev`.
 
-This is a proof of concept and deliberately implements a small subset. Where a
-faithful implementation was not possible, the handler fails loudly rather than
+It implements the parts of WAI that Workers can support. Where a faithful
+implementation is not possible, the handler fails loudly rather than
 pretending.
 
 ## Request
