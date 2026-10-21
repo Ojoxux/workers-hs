@@ -8,6 +8,13 @@ description:
   BEGIN/COMMIT, so persistent's transaction hooks do nothing.
 
 license:         BSD-3-Clause
+license-file:    LICENSE
+author:          Jou Okuyama
+maintainer:      ojoxux@gmail.com
+copyright:       2026 Jou Okuyama
+category:        Database
+homepage:        https://github.com/Ojoxux/workers-wai
+bug-reports:     https://github.com/Ojoxux/workers-wai/issues
 build-type:      Simple
 
 library
@@ -26,3 +33,8 @@ library
 
   default-language: Haskell2010
   ghc-options:      -Wall
+
+source-repository head
+  type:     git
+  location: https://github.com/Ojoxux/workers-wai
+  subdir:   haskell/persistent-d1
