@@ -49,7 +49,8 @@ The template is a WAI application; [docs/yesod.md](docs/yesod.md) and
 
 ## Using it from a project
 
-Projects pin a release tag in two places:
+Projects pin a release tag where they take the Haskell packages and the
+runtime:
 
 - `cabal.project` imports [workers-wai.project](workers-wai.project), which
   brings the libraries, the packages patched for wasm and the constraints they
@@ -65,6 +66,10 @@ Projects pin a release tag in two places:
   ```json
   "workers-wai": "github:Ojoxux/workers-wai#v0.1.0&path:/runtime"
   ```
+
+- A project made from the template also has the tag in `flake.nix`, as the
+  `workers-wai` input, which pins the wasm toolchain (ghc-wasm-meta) the
+  release was built with. Change all three to upgrade.
 
 The executable is built with `-no-hs-main -optl-mexec-model=reactor` and
 exports its `main` (`foreign export javascript "workerMain" main :: IO ()`);
