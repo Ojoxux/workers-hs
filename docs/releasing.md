@@ -1,10 +1,17 @@
 # Releasing
 
-A release is a git tag, `vX.Y.Z`. Projects pin it in one place, the URL they
-import:
+A release is a git tag, `vX.Y.Z`. Projects pin it where they import the Haskell
+packages:
 
 ```cabal
 import: https://raw.githubusercontent.com/Ojoxux/workers-wai/vX.Y.Z/workers-wai.project
+```
+
+and where they install the JavaScript runtime, from the same tag (pnpm can
+install a subdirectory of a git repository; the package is not on npm):
+
+```json
+"workers-wai": "github:Ojoxux/workers-wai#vX.Y.Z&path:/runtime"
 ```
 
 `workers-wai.project` fetches the libraries, shims and patched packages with
@@ -31,16 +38,6 @@ tagged commit's `workers-wai.project` must name that tag.
    git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
-
-5. Publish the JavaScript runtime from the tagged commit:
-
-   ```sh
-   cd runtime
-   npm publish
-   ```
-
-   The package is `workers-wai`: `makeWorker` and the WASI shim, which a
-   project's worker entry imports.
 
 Between releases, `main`'s `workers-wai.project` still names the last tag, so
 importing it from `main` builds the last release, not `main`.

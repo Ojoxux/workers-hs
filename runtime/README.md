@@ -1,8 +1,17 @@
-# workers-wai
+# workers-wai runtime
 
 The JavaScript half of [workers-wai](https://github.com/Ojoxux/workers-wai):
 it boots a Haskell module compiled with GHC's wasm backend on Cloudflare
 Workers and forwards every request to it.
+
+It is not published on npm. Install it from a release tag with pnpm, which can
+take a subdirectory of a git repository:
+
+```json
+"dependencies": {
+  "workers-wai": "github:Ojoxux/workers-wai#v0.1.0&path:/runtime"
+}
+```
 
 ```js
 import wasmModule from "./generated/app.wasm";
@@ -18,5 +27,4 @@ copies the env's string entries into the WASI environment, so
 `System.Environment.lookupEnv` sees vars and Secrets; `exposeErrors` (default
 `false`) puts exception details in 500 response bodies, for development.
 
-The Haskell side, the project templates and the documentation are in the
-[repository](https://github.com/Ojoxux/workers-wai). BSD-3-Clause.
+BSD-3-Clause.

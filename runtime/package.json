@@ -1,7 +1,7 @@
 {
   "name": "workers-wai",
   "version": "0.1.0",
-  "description": "JavaScript runtime for Haskell (GHC wasm) Workers built with workers-wai",
+  "description": "JavaScript runtime for Haskell (GHC wasm) Workers built with workers-wai; installed from git, not published",
   "type": "module",
   "exports": {
     ".": {
@@ -9,7 +9,13 @@
       "default": "./runtime.mjs"
     }
   },
-  "files": ["runtime.mjs", "runtime.d.ts", "wasi.mjs", "README.md", "LICENSE"],
+  "files": [
+    "runtime.mjs",
+    "runtime.d.ts",
+    "wasi.mjs",
+    "README.md",
+    "LICENSE"
+  ],
   "license": "BSD-3-Clause",
   "author": "Jou Okuyama <ojoxux@gmail.com>",
   "homepage": "https://github.com/Ojoxux/workers-wai",
@@ -19,5 +25,5 @@
     "url": "git+https://github.com/Ojoxux/workers-wai.git",
     "directory": "runtime"
   },
-  "keywords": ["cloudflare-workers", "haskell", "wasm", "wai", "yesod"]
+  "private": true
 }

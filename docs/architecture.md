@@ -6,7 +6,7 @@ own and stays alive between calls — exactly the shape a Worker needs.
 
 ```
 worker/src/index.mjs           Workers entry: makeWorker(wasm, jsffi)
-runtime/runtime.mjs            makeWorker (npm: workers-wai): boot once per isolate, forward fetch
+runtime/runtime.mjs            makeWorker (package workers-wai): boot once per isolate, forward fetch
   +-- runtime/wasi.mjs         minimal wasi_snapshot_preview1 shim
   +-- generated/ghc_wasm_jsffi.js   JSFFI glue, emitted by post-link.mjs
   +-- generated/app.wasm       the Haskell program
