@@ -1,6 +1,6 @@
 // Dump the imports and exports of a wasm module.
 //
-// The WASI shim in worker/src/wasi.mjs implements exactly the
+// The WASI shim in runtime/wasi.mjs implements exactly the
 // wasi_snapshot_preview1 functions listed here -- run this after changing
 // the GHC version or the dependency set to see whether the required set
 // has grown.

@@ -2,7 +2,7 @@
 // with cabal.project: the same packages (less the demos and tests), the same
 // constraints and the same flags.
 //
-//   node scripts/check-project.mjs [tag]   # with a tag: also check that it is the one pinned
+//   node scripts/check-project.mjs [tag]   # with a tag: also check the pinned tag and the npm version
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -43,6 +43,8 @@ if (JSON.stringify(lf) !== JSON.stringify(sf)) {
 const tag = process.argv[2];
 const pinnedTag = field(shared, "tag")[0];
 if (tag && pinnedTag !== tag) problems.push(`workers-wai.project pins tag ${pinnedTag}, expected ${tag}`);
+const npmVersion = JSON.parse(readFileSync(join(root, "runtime/package.json"), "utf8")).version;
+if (tag && `v${npmVersion}` !== tag) problems.push(`runtime/package.json is version ${npmVersion}, expected ${tag.slice(1)}`);
 
 if (problems.length) {
   console.log(problems.join("\n"));

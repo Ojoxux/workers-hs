@@ -6,8 +6,8 @@ own and stays alive between calls — exactly the shape a Worker needs.
 
 ```
 worker/src/index.mjs           Workers entry: makeWorker(wasm, jsffi)
-worker/src/runtime.mjs         makeWorker: boot once per isolate, forward fetch
-  +-- worker/src/wasi.mjs      minimal wasi_snapshot_preview1 shim
+runtime/runtime.mjs            makeWorker (package workers-wai): boot once per isolate, forward fetch
+  +-- runtime/wasi.mjs         minimal wasi_snapshot_preview1 shim
   +-- generated/ghc_wasm_jsffi.js   JSFFI glue, emitted by post-link.mjs
   +-- generated/app.wasm       the Haskell program
         |
@@ -162,7 +162,7 @@ out of the handler's dependency set.
 
 ## The WASI shim
 
-Cloudflare Workers has no WASI layer. `worker/src/wasi.mjs` implements
+Cloudflare Workers has no WASI layer. `runtime/wasi.mjs` implements
 `wasi_snapshot_preview1` directly rather than pulling in
 `@cloudflare/workers-wasi`, which is unmaintained and lacks `initialize()` —
 its absence forces a dummy `_start` workaround that several older write-ups

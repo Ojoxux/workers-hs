@@ -10,7 +10,7 @@ Lists the module's imports grouped by import module, and its exports.
 
 Two things are worth checking with it:
 
-**The WASI import list.** `worker/src/wasi.mjs` implements exactly the
+**The WASI import list.** `runtime/wasi.mjs` implements exactly the
 `wasi_snapshot_preview1` functions this reports — no more, no fewer. The set
 really does move: `demo-wai` needs 20, `demo-yesod` needs 21. Re-run this after
 changing the GHC version or the dependency set.
@@ -28,7 +28,7 @@ scripts/test.sh
 
 Builds `test-worker`, `test-yesod`, `test-vendor`, `demo-wai` and `demo-yesod` into
 `.test-build/`, then runs `test/*.test.mjs` with Node's test runner. Each test boots a module
-through `worker/src/runtime.mjs` — the same code path as production — with a
+through `runtime/runtime.mjs` — the same code path as production — with a
 fake `ExecutionContext` and, for outbound fetch, a local HTTP server.
 
 After the first build, `node --test --test-force-exit --test-timeout=30000

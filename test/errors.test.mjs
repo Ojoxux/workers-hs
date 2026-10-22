@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { makeWorker } from "../worker/src/runtime.mjs";
+import { makeWorker } from "../runtime/runtime.mjs";
 import { BASE, fakeCtx, loadWasm, loadWorker } from "./harness.mjs";
 
 test("a throwing Response constructor becomes a 500, not a crash", async () => {

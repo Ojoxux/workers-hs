@@ -126,7 +126,7 @@ it must be read off the compiled module rather than assumed. See
 Stock crypton's system entropy backend only opens `/dev/urandom`. There is no
 filesystem, so every random operation (key generation, IVs, nonces) fails. The
 vendored crypton adds a backend that calls `getentropy`, which wasi-libc
-implements with the WASI `random_get` import, and `worker/src/wasi.mjs` backs
+implements with the WASI `random_get` import, and `runtime/wasi.mjs` backs
 that with `crypto.getRandomValues` in chunks of at most 65,536 bytes. Without
 the vendored crypton, anything that needs a random number fails at run time.
 

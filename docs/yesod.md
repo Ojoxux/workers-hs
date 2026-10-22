@@ -156,7 +156,7 @@ build:
 node scripts/inspect-wasm.mjs worker/generated/app.wasm
 ```
 
-`path_unlink_file` appeared, and had to be added to `worker/src/wasi.mjs`. The
+`path_unlink_file` appeared, and had to be added to `runtime/wasi.mjs`. The
 shim reports unimplemented imports by name when called, so this would have
 surfaced as a clear log line rather than a mysterious failure — but checking is
 cheaper than debugging.
