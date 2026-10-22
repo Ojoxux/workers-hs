@@ -51,7 +51,7 @@ about those.
 
 ## Using these packages from another repository
 
-Import `workers-wai.project` at the repository root (see docs/releasing.md): it
+Import `workers-hs.project` at the repository root (see docs/releasing.md): it
 lists these packages with the shims and libraries, and carries the constraints
 they need.
 

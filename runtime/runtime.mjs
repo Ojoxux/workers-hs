@@ -1,6 +1,6 @@
 // The JavaScript half of cloudflare-workers.
 //
-//   import { makeWorker } from "workers-wai";
+//   import { makeWorker } from "workers-hs";
 //   export default makeWorker(wasmModule, jsffi);
 //
 // Boots the Haskell wasm reactor module once per isolate and forwards every

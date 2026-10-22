@@ -180,8 +180,8 @@ test("a 304 response keeps the upstream Content-Length and has an empty body", a
 });
 
 test("a Bearer Authorization and a User-Agent reach the upstream (the shape of GitHub's user API request)", async () => {
-  const r = await http({ url: `${upstream.url}/echo-all`, bearer: "tok123", ua: "workers-wai-test" });
+  const r = await http({ url: `${upstream.url}/echo-all`, bearer: "tok123", ua: "workers-hs-test" });
   const seen = JSON.parse(r.body).headers;
   assert.equal(seen.authorization, "Bearer tok123");
-  assert.equal(seen["user-agent"], "workers-wai-test");
+  assert.equal(seen["user-agent"], "workers-hs-test");
 });

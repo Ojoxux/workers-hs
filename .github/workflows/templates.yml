@@ -1,7 +1,7 @@
 name: Template
 
 # Generate the project template, build it against this commit and check that
-# it serves / under wrangler dev: what `nix flake init -t github:Ojoxux/workers-wai`
+# it serves / under wrangler dev: what `nix flake init -t github:Ojoxux/workers-hs`
 # gives a new project. Run by hand, before a release.
 
 on:
@@ -24,7 +24,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ghc-wasm/.cabal
-          key: wasm-cabal-${{ hashFiles('flake.lock', 'workers-wai.project', 'haskell/**/*.cabal') }}
+          key: wasm-cabal-${{ hashFiles('flake.lock', 'workers-hs.project', 'haskell/**/*.cabal') }}
           restore-keys: wasm-cabal-
       - name: Generate, build and serve
         run: scripts/try-template.sh "$RUNNER_TEMP/template"

@@ -308,7 +308,7 @@ and 405 responses. Verified under `wrangler dev`:
 ```console
 $ curl http://localhost:8787/hello/world
 <!DOCTYPE html>
-<html><head><title>workers-wai</title></head><body><h1>Hello, world!</h1>
+<html><head><title>workers-hs</title></head><body><h1>Hello, world!</h1>
 <p><a href="http://localhost:8787/">Back</a>
 </p>
 </body></html>

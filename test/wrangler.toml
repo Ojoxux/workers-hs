@@ -21,4 +21,4 @@ id = "00000000000000000000000000000000"
 # Local R2 for scripts/check-wrangler.mjs.
 [[r2_buckets]]
 binding = "R2"
-bucket_name = "workers-wai-test"
+bucket_name = "workers-hs-test"

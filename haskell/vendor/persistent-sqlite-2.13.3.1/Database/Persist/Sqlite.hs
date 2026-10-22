@@ -58,7 +58,7 @@ module Database.Persist.Sqlite
     , withRawSqlitePoolInfo
     , withRawSqlitePoolInfo_
       -- * Internals, exported for backends that reuse this SQLite dialect
-      -- (added for workers-wai; see haskell/vendor/README.md)
+      -- (added for workers-hs; see haskell/vendor/README.md)
     , insertSql'
     , migrate'
     , escape
