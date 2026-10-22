@@ -8,7 +8,7 @@
     "deploy": "bash build.sh && wrangler deploy"
   },
   "dependencies": {
-    "workers-wai": "github:Ojoxux/workers-wai#v0.1.0&path:/runtime"
+    "workers-hs": "github:Ojoxux/workers-hs#v0.1.0&path:/runtime"
   },
   "devDependencies": {
     "wrangler": "^4.151.0"

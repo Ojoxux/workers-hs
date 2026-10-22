@@ -1,4 +1,4 @@
-# workers-wai
+# workers-hs
 
 Run a WAI `Application` — and Yesod on top of it — on Cloudflare Workers.
 
@@ -26,7 +26,7 @@ Hackage or npm, and makes no compatibility promises beyond its release tags.
 ```
 
 The Haskell code is compiled to a wasm32-wasi reactor module. The Worker's
-entry delegates to `makeWorker` from the runtime package `workers-wai`
+entry delegates to `makeWorker` from the runtime package `workers-hs`
 (`runtime/`), which instantiates the module once per isolate and then calls it
 for every fetch event.
 
@@ -37,7 +37,7 @@ wasm backend, `wasm32-wasi-cabal`, Node and pnpm.
 
 ```sh
 mkdir my-app && cd my-app
-nix flake init -t github:Ojoxux/workers-wai
+nix flake init -t github:Ojoxux/workers-hs
 nix develop
 pnpm install
 pnpm run build       # the first build compiles the dependencies for wasm: slow
@@ -52,23 +52,23 @@ The template is a WAI application; [docs/yesod.md](docs/yesod.md) and
 Projects pin a release tag where they take the Haskell packages and the
 runtime:
 
-- `cabal.project` imports [workers-wai.project](workers-wai.project), which
+- `cabal.project` imports [workers-hs.project](workers-hs.project), which
   brings the libraries, the packages patched for wasm and the constraints they
   need:
 
   ```cabal
-  import: https://raw.githubusercontent.com/Ojoxux/workers-wai/v0.1.0/workers-wai.project
+  import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.0/workers-hs.project
   ```
 
 - `package.json` installs the runtime from git with pnpm, and the Worker's
   entry is `export default makeWorker(wasmModule, jsffi)`:
 
   ```json
-  "workers-wai": "github:Ojoxux/workers-wai#v0.1.0&path:/runtime"
+  "workers-hs": "github:Ojoxux/workers-hs#v0.1.0&path:/runtime"
   ```
 
 - A project made from the template also has the tag in `flake.nix`, as the
-  `workers-wai` input, which pins the wasm toolchain (ghc-wasm-meta) the
+  `workers-hs` input, which pins the wasm toolchain (ghc-wasm-meta) the
   release was built with. Change all three to upgrade.
 
 The executable is built with `-no-hs-main -optl-mexec-model=reactor` and
@@ -113,12 +113,12 @@ haskell/http-client-cloudflare   http-client Manager over fetch
 haskell/test-vendor              checks the vendored crypto stack against published vectors
 haskell/vendor/                  Hackage packages patched to build for wasm (crypton, memory, ...)
 haskell/shims/                   stand-ins for packages with no wasm build (network, entropy)
-runtime/                         the JS runtime package workers-wai: makeWorker and the WASI shim
+runtime/                         the JS runtime package workers-hs: makeWorker and the WASI shim
 worker/                          the demo Worker (wrangler.toml and its entry point)
 scripts/                         build, test, inspect and wrangler-check helpers
 ```
 
-## Developing workers-wai
+## Developing workers-hs
 
 Building this repository's demos and tests also takes Nix with flakes. The dev
 shell provides `wasm32-wasi-ghc` 9.12, `wasm32-wasi-cabal`, `wasi-sdk`, Node,
@@ -185,7 +185,7 @@ npm run deploy       # wrangler deploy
 | [docs/persistent-d1.md](docs/persistent-d1.md) | persistent on D1: usage, no transactions, the parameter limit, values and migrations |
 | [docs/yesod.md](docs/yesod.md) | The steps from a working WAI handler to a running Yesod application |
 | [docs/development.md](docs/development.md) | Inspecting the wasm module and the fast test loop |
-| [docs/releasing.md](docs/releasing.md) | Cutting a release: the tag, workers-wai.project, and keeping it in step with cabal.project |
+| [docs/releasing.md](docs/releasing.md) | Cutting a release: the tag, workers-hs.project, and keeping it in step with cabal.project |
 
 ## License
 

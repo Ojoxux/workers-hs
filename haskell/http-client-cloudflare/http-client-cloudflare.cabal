@@ -13,8 +13,8 @@ author:          Jou Okuyama
 maintainer:      ojoxux@gmail.com
 copyright:       2026 Jou Okuyama
 category:        Network
-homepage:        https://github.com/Ojoxux/workers-wai
-bug-reports:     https://github.com/Ojoxux/workers-wai/issues
+homepage:        https://github.com/Ojoxux/workers-hs
+bug-reports:     https://github.com/Ojoxux/workers-hs/issues
 build-type:      Simple
 
 library
@@ -36,5 +36,5 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/Ojoxux/workers-wai
+  location: https://github.com/Ojoxux/workers-hs
   subdir:   haskell/http-client-cloudflare

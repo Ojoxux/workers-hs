@@ -1,7 +1,7 @@
 {
-  "name": "workers-wai",
+  "name": "workers-hs",
   "version": "0.1.0",
-  "description": "JavaScript runtime for Haskell (GHC wasm) Workers built with workers-wai; installed from git, not published",
+  "description": "JavaScript runtime for Haskell (GHC wasm) Workers built with workers-hs; installed from git, not published",
   "type": "module",
   "exports": {
     ".": {
@@ -18,11 +18,11 @@
   ],
   "license": "BSD-3-Clause",
   "author": "Jou Okuyama <ojoxux@gmail.com>",
-  "homepage": "https://github.com/Ojoxux/workers-wai",
-  "bugs": "https://github.com/Ojoxux/workers-wai/issues",
+  "homepage": "https://github.com/Ojoxux/workers-hs",
+  "bugs": "https://github.com/Ojoxux/workers-hs/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Ojoxux/workers-wai.git",
+    "url": "git+https://github.com/Ojoxux/workers-hs.git",
     "directory": "runtime"
   },
   "private": true

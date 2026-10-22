@@ -125,7 +125,7 @@ writing any shim — see [yesod.md](yesod.md) for how that played out here.
 1. Create `haskell/shims/<name>/` with a `.cabal` file whose `version:` matches
    the Hackage release being shadowed, so bounds resolve.
 2. Add it to `packages:` in `cabal.project` (local packages shadow Hackage) and to
-   `subdir:` in `workers-wai.project`, so that projects importing it get the shim
+   `subdir:` in `workers-hs.project`, so that projects importing it get the shim
    too; `node scripts/check-project.mjs` checks the two agree.
 3. Derive the API surface by grepping the actual consumers, not by reading the
    upstream haddocks — the needed subset is usually tiny.
@@ -141,10 +141,10 @@ it: see `haskell/vendor/README.md`.
 
 ## The template
 
-`templates/wai` is what `nix flake init -t github:Ojoxux/workers-wai` copies
-into a new project. It names a release in three places: the `workers-wai`
+`templates/wai` is what `nix flake init -t github:Ojoxux/workers-hs` copies
+into a new project. It names a release in three places: the `workers-hs`
 flake input (which also pins ghc-wasm-meta through this repository's
-`flake.lock`), the `import:` in `cabal.project`, and `workers-wai` in
+`flake.lock`), the `import:` in `cabal.project`, and `workers-hs` in
 `package.json`, installed from git with pnpm. `node scripts/check-project.mjs`
 checks them.
 

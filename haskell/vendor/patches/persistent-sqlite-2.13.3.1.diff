@@ -6,7 +6,7 @@ diff --color -ruN -x dist-newstyle pristine/persistent-sqlite-2.13.3.1/Database/
      , withRawSqlitePoolInfo
      , withRawSqlitePoolInfo_
 +      -- * Internals, exported for backends that reuse this SQLite dialect
-+      -- (added for workers-wai; see haskell/vendor/README.md)
++      -- (added for workers-hs; see haskell/vendor/README.md)
 +    , insertSql'
 +    , migrate'
 +    , escape

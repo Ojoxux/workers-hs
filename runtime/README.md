@@ -1,6 +1,6 @@
-# workers-wai runtime
+# workers-hs runtime
 
-The JavaScript half of [workers-wai](https://github.com/Ojoxux/workers-wai):
+The JavaScript half of [workers-hs](https://github.com/Ojoxux/workers-hs):
 it boots a Haskell module compiled with GHC's wasm backend on Cloudflare
 Workers and forwards every request to it.
 
@@ -9,14 +9,14 @@ take a subdirectory of a git repository:
 
 ```json
 "dependencies": {
-  "workers-wai": "github:Ojoxux/workers-wai#v0.1.0&path:/runtime"
+  "workers-hs": "github:Ojoxux/workers-hs#v0.1.0&path:/runtime"
 }
 ```
 
 ```js
 import wasmModule from "./generated/app.wasm";
 import jsffi from "./generated/ghc_wasm_jsffi.js";
-import { makeWorker } from "workers-wai";
+import { makeWorker } from "workers-hs";
 
 export default makeWorker(wasmModule, jsffi);
 ```

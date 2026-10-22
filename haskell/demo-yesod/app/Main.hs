@@ -33,7 +33,7 @@ instance Yesod App where
 
 getHomeR :: Handler Html
 getHomeR = defaultLayout $ do
-  setTitle "workers-wai"
+  setTitle "workers-hs"
   [whamlet|
     <h1>Hello from Yesod on Cloudflare Workers
     <p>
@@ -45,7 +45,7 @@ getHomeR = defaultLayout $ do
 
 getHelloR :: Text -> Handler Html
 getHelloR name = defaultLayout $ do
-  setTitle "workers-wai"
+  setTitle "workers-hs"
   [whamlet|
     <h1>Hello, #{name}!
     <p>

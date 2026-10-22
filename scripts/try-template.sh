@@ -13,19 +13,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="${1:-$(mktemp -d)}"
 REV="$(git -C "$ROOT" rev-parse HEAD)"
 
-echo "==> template in $DIR (workers-wai $REV)"
+echo "==> template in $DIR (workers-hs $REV)"
 mkdir -p "$DIR"
 cd "$DIR"
 nix flake init -t "path:$ROOT"
 
 # The release the template names does not exist for this commit: use the
 # checkout for the flake input, the cabal packages and the runtime.
-sed "s|location: https://github.com/Ojoxux/workers-wai|location: $ROOT|; s|  tag: v[0-9.]*|  tag: $REV|" \
-  "$ROOT/workers-wai.project" > workers-wai.project
-sed -i.bak "s|^import: https://.*|import: ./workers-wai.project|" cabal.project
-sed -i.bak "s|\"workers-wai\": \"[^\"]*\"|\"workers-wai\": \"file:$ROOT/runtime\"|" package.json
+sed "s|location: https://github.com/Ojoxux/workers-hs|location: $ROOT|; s|  tag: v[0-9.]*|  tag: $REV|" \
+  "$ROOT/workers-hs.project" > workers-hs.project
+sed -i.bak "s|^import: https://.*|import: ./workers-hs.project|" cabal.project
+sed -i.bak "s|\"workers-hs\": \"[^\"]*\"|\"workers-hs\": \"file:$ROOT/runtime\"|" package.json
 rm -f ./*.bak
-DEV=(nix develop --override-input workers-wai "path:$ROOT" --command)
+DEV=(nix develop --override-input workers-hs "path:$ROOT" --command)
 
 "${DEV[@]}" pnpm install
 "${DEV[@]}" pnpm run build
