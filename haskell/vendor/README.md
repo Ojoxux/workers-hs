@@ -51,20 +51,9 @@ about those.
 
 ## Using these packages from another repository
 
-```
-source-repository-package
-  type: git
-  location: https://github.com/Ojoxux/workers-wai
-  tag: <a commit>
-  subdir: haskell/vendor/crypton-1.0.6
-          haskell/vendor/memory-0.18.0
-          haskell/vendor/basement-0.0.16
-          haskell/vendor/cborg-0.2.10.0
-          haskell/vendor/xml-conduit-1.10.1.0
-          haskell/vendor/persistent-sqlite-2.13.3.1
-```
-
-Use the same `constraints:` as this repository's `cabal.project`.
+Import `workers-wai.project` at the repository root (see docs/releasing.md): it
+lists these packages with the shims and libraries, and carries the constraints
+they need.
 
 ## Known loose ends
 
