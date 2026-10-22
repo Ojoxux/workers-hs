@@ -1,6 +1,6 @@
 // Check that workers-wai.project, which other projects import, stays in step
 // with cabal.project: the same packages (less the demos and tests), the same
-// constraints and the same flags.
+// constraints and the same flags; and that the templates name the release it pins.
 //
 //   node scripts/check-project.mjs [tag]   # with a tag: also check the pinned tag and the npm version
 
@@ -45,6 +45,21 @@ const pinnedTag = field(shared, "tag")[0];
 if (tag && pinnedTag !== tag) problems.push(`workers-wai.project pins tag ${pinnedTag}, expected ${tag}`);
 const npmVersion = JSON.parse(readFileSync(join(root, "runtime/package.json"), "utf8")).version;
 if (tag && `v${npmVersion}` !== tag) problems.push(`runtime/package.json is version ${npmVersion}, expected ${tag.slice(1)}`);
+
+// The template names the release in its flake input, its cabal.project import and its npm dependency.
+for (const t of ["wai"]) {
+  const v = pinnedTag;
+  const checks = [
+    ["flake.nix", `github:Ojoxux/workers-wai/${v}"`],
+    ["cabal.project", `/Ojoxux/workers-wai/${v}/workers-wai.project`],
+    ["package.json", `"workers-wai": "github:Ojoxux/workers-wai#${v}&path:/runtime"`],
+  ];
+  for (const [f, expected] of checks) {
+    if (!readFileSync(join(root, "templates", t, f), "utf8").includes(expected)) {
+      problems.push(`templates/${t}/${f} does not name ${v} (expected ${expected})`);
+    }
+  }
+}
 
 if (problems.length) {
   console.log(problems.join("\n"));

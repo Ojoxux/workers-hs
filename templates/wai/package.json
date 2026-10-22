@@ -1,0 +1,16 @@
+{
+  "name": "worker-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bash build.sh",
+    "dev": "wrangler dev",
+    "deploy": "bash build.sh && wrangler deploy"
+  },
+  "dependencies": {
+    "workers-wai": "github:Ojoxux/workers-wai#v0.1.0&path:/runtime"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.0"
+  }
+}

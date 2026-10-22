@@ -1,0 +1,5 @@
+packages: .
+
+-- The workers-wai libraries, the packages they patch for wasm32-wasi, and the
+-- constraints they need. Change the version here to upgrade.
+import: https://raw.githubusercontent.com/Ojoxux/workers-wai/v0.1.0/workers-wai.project

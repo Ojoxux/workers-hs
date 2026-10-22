@@ -1,0 +1,5 @@
+dist-newstyle/
+generated/
+node_modules/
+.wrangler/
+.dev.vars

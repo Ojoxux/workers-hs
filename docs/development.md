@@ -138,3 +138,20 @@ writing any shim — see [yesod.md](yesod.md) for how that played out here.
 
 If the real package only needs a patch to build, vendor it instead of shimming
 it: see `haskell/vendor/README.md`.
+
+## The template
+
+`templates/wai` is what `nix flake init -t github:Ojoxux/workers-wai` copies
+into a new project. It names a release in three places: the `workers-wai`
+flake input (which also pins ghc-wasm-meta through this repository's
+`flake.lock`), the `import:` in `cabal.project`, and `workers-wai` in
+`package.json`, installed from git with pnpm. `node scripts/check-project.mjs`
+checks them.
+
+```sh
+scripts/try-template.sh      # optionally a directory to use
+```
+
+generates a project from the template, points those three at this checkout's
+committed `HEAD` instead of the release, builds it, runs `wrangler dev` and
+fetches `/`. The Template workflow runs it on demand; run it before a release.

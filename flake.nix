@@ -1,5 +1,5 @@
 {
-  description = "WAI / Yesod on Cloudflare Workers (PoC)";
+  description = "WAI / Yesod on Cloudflare Workers";
 
   inputs = {
     ghc-wasm-meta.url = "github:haskell-wasm/ghc-wasm-meta";
@@ -15,7 +15,16 @@
       flake-utils,
       ghc-wasm-meta,
     }:
-    flake-utils.lib.eachDefaultSystem (
+    {
+      templates = {
+        default = self.templates.wai;
+        wai = {
+          path = ./templates/wai;
+          description = "A WAI application on Cloudflare Workers";
+        };
+      };
+    }
+    // flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs { inherit system; };

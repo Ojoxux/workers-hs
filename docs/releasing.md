@@ -23,10 +23,12 @@ tagged commit's `workers-wai.project` must name that tag.
 1. Pick the version. Until 1.0, a change that breaks a project bumps the minor
    version.
 2. On a branch, set `tag: vX.Y.Z` in `workers-wai.project` and the version in
-   the import line at its top, and `"version": "X.Y.Z"` in
-   `runtime/package.json`.
+   the import line at its top, `"version": "X.Y.Z"` in `runtime/package.json`,
+   and the version the template names: `templates/wai/flake.nix` (the
+   `workers-wai` input), `templates/wai/cabal.project` (the import) and
+   `templates/wai/package.json` (`#vX.Y.Z` in the git dependency).
 3. Check that the file still matches `cabal.project`, pins the new tag, and
-   that the npm version matches:
+   that the runtime's version and the template match:
 
    ```sh
    node scripts/check-project.mjs vX.Y.Z
