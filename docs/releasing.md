@@ -7,8 +7,9 @@ Release workflow (`.github/workflows/release.yml`), which:
    (`scripts/next-version.mjs`), or stops when there is nothing to release;
 2. makes a commit **off `main`** that fills the version in
    (`scripts/fill-version.mjs`) and tags it `vX.Y.Z`;
-3. creates a GitHub Release for the tag, with notes generated from the merged
-   pull requests.
+3. creates a GitHub Release for the latest tag if it has none, with notes
+   generated from the merged pull requests. A run that pushed its tag but
+   failed before this is finished by a rerun or by the next push.
 
 Nothing on `main` names a version, and no commit bumps one.
 

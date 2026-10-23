@@ -40,9 +40,12 @@ jobs:
           git commit -am "chore: release $TAG"
           git tag "$TAG"
           git push origin "$TAG"
-      - name: GitHub Release
-        if: steps.version.outputs.tag != ''
+      # For the latest tag, not only a new one: a run that pushed its tag but
+      # failed before this step is finished by a rerun or the next push.
+      - name: GitHub Release for the latest tag
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-        run: gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
+        run: |
+          tag="$(git tag --list 'v*.*.*' --sort=-v:refname | head -n 1)"
+          [ -n "$tag" ] || exit 0
+          gh release view "$tag" > /dev/null 2>&1 || gh release create "$tag" --verify-tag --generate-notes --title "$tag"
