@@ -16,6 +16,11 @@
 -- from a background cache thread, and a session too large for a cookie is
 -- an error instead of a cookie the browser silently drops.
 --
+-- The cookie is neither @Secure@ nor @SameSite@ unless the backend is wrapped,
+-- as for @clientSessionBackend@: in production use
+-- @laxSameSiteSessions . sslOnlySessions@ (see docs/yesod.md). CSRF protection
+-- is separate: add @defaultCsrfMiddleware@ to @yesodMiddleware@.
+--
 -- If a request carries several @_SESSION@ cookies (for example one per
 -- Path or Domain), each is opened, and the session is used only when
 -- exactly one of them opens (authenticates under some key and has not

@@ -95,6 +95,9 @@ main = runCloudflareWith $ \env -> do
 
 instance Yesod App where
   makeSessionBackend = pure . Just . appSessionBackend
+  -- Not on by default: requires the CSRF token on writes (any method but GET,
+  -- HEAD, OPTIONS and TRACE) and sets the XSRF-TOKEN cookie.
+  yesodMiddleware = defaultYesodMiddleware . defaultCsrfMiddleware
 ```
 
 It behaves like `clientSessionBackend`: an encrypted `_SESSION` cookie
@@ -102,13 +105,18 @@ It behaves like `clientSessionBackend`: an encrypted `_SESSION` cookie
 request, and an empty session for any cookie it cannot read. `sslOnlySessions`,
 `laxSameSiteSessions` and friends compose with it as usual, and so do
 `defaultCsrfMiddleware` and yesod-auth, which only need a working session.
+Neither the cookie attributes nor CSRF protection are on by default; see
+**Production** below and the `yesodMiddleware` line above.
 
 Differences from `clientSessionBackend`:
 
 - The current time is read per request instead of from a background cache
   thread.
 - A session whose encoded cookie exceeds 4,000 bytes throws `SessionTooLarge`
-  instead of producing a cookie the browser silently drops.
+  instead of producing a cookie the browser silently drops. No cookie is
+  written, so the browser keeps the one it had and the next request starts
+  from that session; a handler that grows the session the same way fails the
+  same way again. Keep large data out of the session.
 - A timeout below 1 minute is rejected when the backend is built.
 
 If a request carries several `_SESSION` cookies (say one per Path or Domain),

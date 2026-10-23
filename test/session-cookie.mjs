@@ -1,5 +1,5 @@
 // An independent implementation of the session cookie format
-// (docs/specs/2026-09-30-yesod-session-design.md §2), used to read the
+// (sealCookie in Yesod.Cloudflare.Session), used to read the
 // cookies the Haskell backend writes and to forge ones it must accept or
 // reject.
 
