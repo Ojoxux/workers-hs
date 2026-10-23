@@ -14,17 +14,17 @@ pretending.
 | `requestMethod` | |
 | `rawPathInfo`, `pathInfo` | from `new URL(request.url).pathname` |
 | `rawQueryString`, `queryString` | from `.search` |
-| `requestHeaders` | names arrive lowercased, as the Fetch API normalizes them |
+| `requestHeaders` | names arrive lowercased, as the Fetch API normalizes them; repeated headers arrive joined with `, `, except `Cookie`, rejoined with `; ` |
 | `requestBody` | read as it arrives, chunk by chunk; see [streaming.md](streaming.md) |
 | `requestBodyLength` | `KnownLength` from `Content-Length`; `ChunkedBody` for a body without one; `KnownLength 0` without a body |
 | `isSecure` | `protocol === 'https:'` |
-| `remoteHost` | recovered from `CF-Connecting-IP` when it parses as IPv4 |
+| `remoteHost` | recovered from `CF-Connecting-IP`, IPv4 or IPv6 |
 | `httpVersion` | always `HTTP/1.1` — Workers does not expose the real version |
 | `vault` | holds the request's `Context`; read it with `requestContext` |
 
-`remoteHost` has to be a `SockAddr`, which Workers has no direct equivalent for.
-An IPv6 `CF-Connecting-IP` — which is what `wrangler dev` sends for `::1` — falls
-back to the `0.0.0.0:0` placeholder. The port is always 0.
+`remoteHost` has to be a `SockAddr`, which Workers has no direct equivalent for:
+an IPv4 address becomes `SockAddrInet`, an IPv6 one `SockAddrInet6`, and a
+missing or unparsable header the `0.0.0.0:0` placeholder. The port is always 0.
 
 `rawPathInfo` and `rawQueryString` come from the request URL with its fragment,
 if any, dropped first — `#frag` is never sent to a server, but `request.url` can
