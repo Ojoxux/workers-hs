@@ -25,6 +25,7 @@ library
     , bytestring
     , cloudflare-workers
     , http-types
+    , iproute
     , network
     , text
     , vault

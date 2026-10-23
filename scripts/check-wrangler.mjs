@@ -20,7 +20,7 @@
 // and always stops them on exit, failure or Ctrl-C.
 
 import { spawn } from "node:child_process";
-import { createServer } from "node:net";
+import { connect, createServer } from "node:net";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cases, check } from "../test/cases.mjs";
@@ -217,6 +217,19 @@ const sessionChecks = [
     expectEqual(problems, "status without token", rejected.status, 403);
     const accepted = await sendYesod("/form", { method: "POST", headers: { cookie, "X-XSRF-TOKEN": token } });
     expectEqual(problems, "status with token", accepted.status, 200);
+  }],
+  ["two Cookie header lines reach Yesod as two cookies", async (problems) => {
+    // fetch would merge them into one line, so send the request by hand.
+    const { hostname, port } = new URL(yesod.base);
+    const raw = await new Promise((resolve, reject) => {
+      const s = connect(Number(port), hostname, () =>
+        s.write("GET /cookies HTTP/1.1\r\nHost: localhost\r\nCookie: a=1\r\nCookie: b=2\r\nConnection: close\r\n\r\n"));
+      let out = "";
+      s.on("data", (d) => (out += d));
+      s.on("end", () => resolve(out));
+      s.on("error", reject);
+    });
+    if (!raw.includes('[("a","1"),("b","2")]')) problems.push(`response ${JSON.stringify(raw.slice(-200))}`);
   }],
 ];
 
