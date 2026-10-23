@@ -57,14 +57,14 @@ runtime:
   need:
 
   ```cabal
-  import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.0/workers-hs.project
+  import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.1/workers-hs.project
   ```
 
 - `package.json` installs the runtime from git with pnpm, and the Worker's
   entry is `export default makeWorker(wasmModule, jsffi)`:
 
   ```json
-  "workers-hs": "github:Ojoxux/workers-hs#v0.1.0&path:/runtime"
+  "workers-hs": "github:Ojoxux/workers-hs#v0.1.1&path:/runtime"
   ```
 
 - A project made from the template also has the tag in `flake.nix`, as the

@@ -1,6 +1,6 @@
 {
   "name": "workers-hs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JavaScript runtime for Haskell (GHC wasm) Workers built with workers-hs; installed from git, not published",
   "type": "module",
   "exports": {

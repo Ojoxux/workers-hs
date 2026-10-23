@@ -2,4 +2,4 @@ packages: .
 
 -- The workers-hs libraries, the packages they patch for wasm32-wasi, and the
 -- constraints they need. Change the version here to upgrade.
-import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.0/workers-hs.project
+import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.1/workers-hs.project

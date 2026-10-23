@@ -2,7 +2,7 @@
   description = "A WAI application on Cloudflare Workers";
 
   inputs = {
-    workers-hs.url = "github:Ojoxux/workers-hs/v0.1.0";
+    workers-hs.url = "github:Ojoxux/workers-hs/v0.1.1";
     # The wasm toolchain workers-hs is built and tested with.
     ghc-wasm-meta.follows = "workers-hs/ghc-wasm-meta";
     nixpkgs.follows = "workers-hs/ghc-wasm-meta/nixpkgs";

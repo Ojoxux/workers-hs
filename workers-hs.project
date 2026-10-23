@@ -1,6 +1,6 @@
 -- Import this from a project's cabal.project to build against workers-hs:
 --
---   import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.0/workers-hs.project
+--   import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.1/workers-hs.project
 --
 -- It brings the libraries, the shims and patched packages that stand in for
 -- Hackage packages that do not build for wasm32-wasi (docs/shims.md,
@@ -10,7 +10,7 @@
 source-repository-package
   type: git
   location: https://github.com/Ojoxux/workers-hs
-  tag: v0.1.0
+  tag: v0.1.1
   subdir:
     haskell/cloudflare-workers
     haskell/wai-handler-cloudflare

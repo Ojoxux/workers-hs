@@ -9,7 +9,7 @@ take a subdirectory of a git repository:
 
 ```json
 "dependencies": {
-  "workers-hs": "github:Ojoxux/workers-hs#v0.1.0&path:/runtime"
+  "workers-hs": "github:Ojoxux/workers-hs#v0.1.1&path:/runtime"
 }
 ```
 
