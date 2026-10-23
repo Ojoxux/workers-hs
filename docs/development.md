@@ -141,17 +141,17 @@ it: see `haskell/vendor/README.md`.
 
 ## The template
 
-`templates/wai` is what `nix flake init -t github:Ojoxux/workers-hs` copies
-into a new project. It names a release in three places: the `workers-hs`
-flake input (which also pins ghc-wasm-meta through this repository's
-`flake.lock`), the `import:` in `cabal.project`, and `workers-hs` in
-`package.json`, installed from git with pnpm. `node scripts/check-project.mjs`
-checks them.
+`templates/wai` is what `nix flake init -t github:Ojoxux/workers-hs/vX.Y.Z`
+copies into a new project. It names the release in three places, `@VERSION@`
+on `main` and filled in at the release tag (see [releasing.md](releasing.md)):
+the `workers-hs` flake input (which also pins ghc-wasm-meta through this
+repository's `flake.lock`), the `import:` in `cabal.project`, and `workers-hs`
+in `package.json`, installed from git with pnpm.
 
 ```sh
 scripts/try-template.sh      # optionally a directory to use
 ```
 
 generates a project from the template, points those three at this checkout's
-committed `HEAD` instead of the release, builds it, runs `wrangler dev` and
-fetches `/`. The Template workflow runs it on demand; run it before a release.
+committed `HEAD` instead, builds it, runs `wrangler dev` and fetches `/`. The
+Template workflow runs it on demand; run it before a release.

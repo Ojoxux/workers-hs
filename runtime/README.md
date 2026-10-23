@@ -4,12 +4,12 @@ The JavaScript half of [workers-hs](https://github.com/Ojoxux/workers-hs):
 it boots a Haskell module compiled with GHC's wasm backend on Cloudflare
 Workers and forwards every request to it.
 
-It is not published on npm. Install it from a release tag with pnpm, which can
-take a subdirectory of a git repository:
+It is not published on npm. Install it from a release tag (see the repository's
+Releases) with pnpm, which can take a subdirectory of a git repository:
 
 ```json
 "dependencies": {
-  "workers-hs": "github:Ojoxux/workers-hs#v0.1.0&path:/runtime"
+  "workers-hs": "github:Ojoxux/workers-hs#vX.Y.Z&path:/runtime"
 }
 ```
 

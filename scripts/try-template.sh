@@ -18,14 +18,15 @@ mkdir -p "$DIR"
 cd "$DIR"
 nix flake init -t "path:$ROOT"
 
-# The release the template names does not exist for this commit: use the
-# checkout for the flake input, the cabal packages and the runtime.
-sed "s|location: https://github.com/Ojoxux/workers-hs|location: $ROOT|; s|  tag: v[0-9.]*|  tag: $REV|" \
+# The template names @VERSION@, which a release fills in: use this checkout
+# instead for the flake input, the cabal packages and the runtime.
+sed "s|location: https://github.com/Ojoxux/workers-hs|location: $ROOT|; s|  tag: @VERSION@|  tag: $REV|" \
   "$ROOT/workers-hs.project" > workers-hs.project
+sed -i.bak "s|github:Ojoxux/workers-hs/@VERSION@|path:$ROOT|" flake.nix
 sed -i.bak "s|^import: https://.*|import: ./workers-hs.project|" cabal.project
 sed -i.bak "s|\"workers-hs\": \"[^\"]*\"|\"workers-hs\": \"file:$ROOT/runtime\"|" package.json
 rm -f ./*.bak
-DEV=(nix develop --override-input workers-hs "path:$ROOT" --command)
+DEV=(nix develop --command)
 
 "${DEV[@]}" pnpm install
 "${DEV[@]}" pnpm run build
