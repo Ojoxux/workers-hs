@@ -37,15 +37,17 @@ wasm backend, `wasm32-wasi-cabal`, Node and pnpm.
 
 ```sh
 mkdir my-app && cd my-app
-nix flake init -t github:Ojoxux/workers-hs
+nix flake init -t github:Ojoxux/workers-hs/vX.Y.Z   # a release tag
 nix develop
 pnpm install
 pnpm run build       # the first build compiles the dependencies for wasm: slow
 pnpm run dev         # http://localhost:8787
 ```
 
-The template is a WAI application; [docs/yesod.md](docs/yesod.md) and
-`haskell/demo-yesod` show Yesod.
+Use a tag from [Releases](https://github.com/Ojoxux/workers-hs/releases): the
+template on `main` has a placeholder where the version goes. The template is a
+WAI application; [docs/yesod.md](docs/yesod.md) and `haskell/demo-yesod` show
+Yesod.
 
 ## Using it from a project
 
@@ -57,14 +59,14 @@ runtime:
   need:
 
   ```cabal
-  import: https://raw.githubusercontent.com/Ojoxux/workers-hs/v0.1.0/workers-hs.project
+  import: https://raw.githubusercontent.com/Ojoxux/workers-hs/vX.Y.Z/workers-hs.project
   ```
 
 - `package.json` installs the runtime from git with pnpm, and the Worker's
   entry is `export default makeWorker(wasmModule, jsffi)`:
 
   ```json
-  "workers-hs": "github:Ojoxux/workers-hs#v0.1.0&path:/runtime"
+  "workers-hs": "github:Ojoxux/workers-hs#vX.Y.Z&path:/runtime"
   ```
 
 - A project made from the template also has the tag in `flake.nix`, as the
@@ -185,7 +187,7 @@ npm run deploy       # wrangler deploy
 | [docs/persistent-d1.md](docs/persistent-d1.md) | persistent on D1: usage, no transactions, the parameter limit, values and migrations |
 | [docs/yesod.md](docs/yesod.md) | The steps from a working WAI handler to a running Yesod application |
 | [docs/development.md](docs/development.md) | Inspecting the wasm module and the fast test loop |
-| [docs/releasing.md](docs/releasing.md) | Cutting a release: the tag, workers-hs.project, and keeping it in step with cabal.project |
+| [docs/releasing.md](docs/releasing.md) | Automatic releases: how the version is chosen, and why the tag is a commit off main |
 
 ## License
 
