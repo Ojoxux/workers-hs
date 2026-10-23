@@ -10,7 +10,7 @@
 source-repository-package
   type: git
   location: https://github.com/Ojoxux/workers-hs
-  tag: @VERSION@
+  tag: v0.1.0
   subdir:
     haskell/cloudflare-workers
     haskell/wai-handler-cloudflare
