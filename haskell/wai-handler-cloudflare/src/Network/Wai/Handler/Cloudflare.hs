@@ -40,11 +40,11 @@ import qualified Data.ByteString            as B
 import qualified Data.ByteString.Builder    as BB
 import qualified Data.ByteString.Char8      as BC
 import qualified Data.ByteString.Lazy       as BL
+import           Data.IP                    (IP (..), fromIPv4, toHostAddress6)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
 import qualified Data.Vault.Lazy            as Vault
-import           Data.Word                  (Word8)
 import           Network.HTTP.Types
 import           Network.Socket             (SockAddr (..), tupleToHostAddress)
 import           Network.Wai
@@ -115,7 +115,7 @@ toWaiRequest freq ctx = do
         -- ^ Workers does not expose the client's HTTP version.
       , rawPathInfo = path
       , rawQueryString = query
-      , requestHeaders = hs
+      , requestHeaders = map rejoinCookies hs
       , isSecure = secure
       , remoteHost = remoteHostFrom hs
       , pathInfo = decodePathSegments path
@@ -147,17 +147,27 @@ splitUrl u =
 -- @CF-Connecting-IP@ when it parses as IPv4; otherwise a placeholder.
 remoteHostFrom :: RequestHeaders -> SockAddr
 remoteHostFrom hs =
-  case lookup "cf-connecting-ip" hs >>= parseIPv4 of
-    Just addr -> SockAddrInet 0 addr
-    Nothing   -> SockAddrInet 0 0
+  case lookup "cf-connecting-ip" hs >>= readMaybe . BC.unpack of
+    -- Through the octets: iproute's toHostAddress assumes the real network's
+    -- byte order, which the shim does not share.
+    Just (IPv4 a)
+      | [w, x, y, z] <- fromIPv4 a ->
+          SockAddrInet 0 (tupleToHostAddress (fromIntegral w, fromIntegral x, fromIntegral y, fromIntegral z))
+    Just (IPv6 a) -> SockAddrInet6 0 0 (toHostAddress6 a) 0
+    _             -> SockAddrInet 0 0
+
+-- | The runtime joins repeated request headers with @", "@, so two @Cookie@
+-- lines would read as one cookie whose value runs on into the next. Cookie
+-- values cannot hold @", "@ (RFC 6265), so put back the @"; "@ WAI expects.
+rejoinCookies :: Header -> Header
+rejoinCookies (name, value)
+  | name == hCookie = (name, B.intercalate "; " (splitOn ", " value))
+  | otherwise = (name, value)
   where
-    parseIPv4 raw = case traverse octet (BC.split '.' raw) of
-      Just [a, b, c, d] -> Just (tupleToHostAddress (a, b, c, d))
-      _                 -> Nothing
-    octet :: B.ByteString -> Maybe Word8
-    octet bs = do
-      n <- readMaybe (BC.unpack bs) :: Maybe Int
-      if n >= 0 && n <= 255 then Just (fromIntegral n) else Nothing
+    splitOn sep s = case B.breakSubstring sep s of
+      (before, after)
+        | B.null after -> [before]
+        | otherwise -> before : splitOn sep (B.drop (B.length sep) after)
 
 -- ---------------------------------------------------------------------------
 -- WAI Response -> F.Response

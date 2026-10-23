@@ -100,6 +100,7 @@ mkYesod "App" [parseRoutes|
 /large LargeR GET
 /stream StreamR GET
 /stream/resource StreamResourceR GET
+/cookies CookiesR GET
 /form  FormR  GET POST
 /persist/migration PersistMigrationR GET
 /persist/setup     PersistSetupR     GET
@@ -145,6 +146,10 @@ getStreamResourceR = respondSource "text/plain" $
   bracketP (pure ()) (\_ -> pure ()) $ \_ -> do
     sendChunkBS "inside\n"
     sendFlush
+
+-- | The request's cookies as Yesod parsed them.
+getCookiesR :: Handler Text
+getCookiesR = T.pack . show . reqCookies <$> getRequest
 
 -- | The CSRF token for this session.
 getFormR :: Handler Text
