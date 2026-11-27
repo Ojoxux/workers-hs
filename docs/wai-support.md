@@ -14,17 +14,37 @@ pretending.
 | `requestMethod` | |
 | `rawPathInfo`, `pathInfo` | from `new URL(request.url).pathname` |
 | `rawQueryString`, `queryString` | from `.search` |
-| `requestHeaders` | names arrive lowercased, as the Fetch API normalizes them; repeated headers arrive joined with `, `, except `Cookie`, rejoined with `; ` |
+| `requestHeaders` | names arrive lowercased, as the Fetch API normalizes them; repeated headers arrive joined with `, `; `Cookie` is passed as is (see below) |
 | `requestBody` | read as it arrives, chunk by chunk; see [streaming.md](streaming.md) |
-| `requestBodyLength` | `KnownLength` from `Content-Length`; `ChunkedBody` for a body without one; `KnownLength 0` without a body |
+| `requestBodyLength` | `KnownLength` from `Content-Length` (digits only; anything else counts as absent), not checked against the body (see below); `ChunkedBody` for a body without one; `KnownLength 0` without a body |
 | `isSecure` | `protocol === 'https:'` |
-| `remoteHost` | recovered from `CF-Connecting-IP`, IPv4 or IPv6 |
+| `remoteHost` | recovered from `CF-Connecting-IP`, IPv4 or IPv6; set by the caller outside the internet edge (see below) |
 | `httpVersion` | always `HTTP/1.1` — Workers does not expose the real version |
 | `vault` | holds the request's `Context`; read it with `requestContext` |
 
 `remoteHost` has to be a `SockAddr`, which Workers has no direct equivalent for:
 an IPv4 address becomes `SockAddrInet`, an IPv6 one `SockAddrInet6`, and a
 missing or unparsable header the `0.0.0.0:0` placeholder. The port is always 0.
+
+`CF-Connecting-IP` is only trustworthy for requests that come through the
+internet edge. Under `wrangler dev` a value the client sends passes through, a
+service-binding caller can set any value or none (giving the placeholder), and
+Cloudflare documents that subrequests from a Worker in the same zone reflect
+`x-real-ip`, which that Worker can set. Do not use `remoteHost` for
+authorization unless the Worker is reachable only from the internet edge.
+
+The `Cookie` header is passed as is. A browser sends one `Cookie` line joined
+with `; `, but a cookie set as `lang=x, _SESSION=…` reaches the Worker as
+`lang=x, _SESSION=…`, and splitting it at `, ` would let one cookie inject
+another (a session cookie, or a `__Host-` one set from a sibling subdomain).
+The runtime joins repeated `Cookie` lines with `, ` too, so a non-browser
+client that sends several of them gets one cookie, whose value runs on into
+the next, from WAI cookie parsers.
+
+`requestBodyLength` is the `Content-Length` the request declares. A
+service-binding caller can send one that does not match the body, so do not
+rely on it to limit the body size; count the bytes read instead. Yesod's
+`maximumContentLength` counts them, so it is not affected.
 
 `rawPathInfo` and `rawQueryString` come from the request URL with its fragment,
 if any, dropped first — `#frag` is never sent to a server, but `request.url` can

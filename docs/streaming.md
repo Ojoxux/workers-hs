@@ -67,9 +67,10 @@ next chunk as it arrives, then empty strings. Making the reader uses the body
 up: a later `bytes`, `bodyReader` or forward throws `BodyAlreadyUsed`.
 
 In a WAI application, `requestBody` reads this way. `requestBodyLength` is
-`KnownLength n` when the request has a `Content-Length`, `ChunkedBody` when it
-has a body without one (a streamed or HTTP/2 upload), and `KnownLength 0` when
-it has no body.
+`KnownLength n` when the request has a `Content-Length` of plain digits,
+`ChunkedBody` when it has a body without one (a streamed or HTTP/2 upload), and
+`KnownLength 0` when it has no body. The length is not checked against the body
+(see [wai-support.md](wai-support.md)).
 
 ## Errors
 

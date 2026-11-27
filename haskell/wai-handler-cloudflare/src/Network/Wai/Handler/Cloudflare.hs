@@ -45,6 +45,7 @@ import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
 import qualified Data.Vault.Lazy            as Vault
+import           Data.Word                  (Word64)
 import           Network.HTTP.Types
 import           Network.Socket             (SockAddr (..), tupleToHostAddress)
 import           Network.Wai
@@ -103,7 +104,7 @@ toWaiRequest freq ctx = do
       hs = F.headers freq
   present <- FI.hasBody (F.body freq)
   reader <- F.bodyReader (F.body freq)
-  let len = case lookup hContentLength hs >>= readMaybe . BC.unpack of
+  let len = case lookup hContentLength hs >>= contentLength of
         Just n -> KnownLength n
         Nothing
           | present -> ChunkedBody
@@ -115,7 +116,7 @@ toWaiRequest freq ctx = do
         -- ^ Workers does not expose the client's HTTP version.
       , rawPathInfo = path
       , rawQueryString = query
-      , requestHeaders = map rejoinCookies hs
+      , requestHeaders = hs
       , isSecure = secure
       , remoteHost = remoteHostFrom hs
       , pathInfo = decodePathSegments path
@@ -156,18 +157,15 @@ remoteHostFrom hs =
     Just (IPv6 a) -> SockAddrInet6 0 0 (toHostAddress6 a) 0
     _             -> SockAddrInet 0 0
 
--- | The runtime joins repeated request headers with @", "@, so two @Cookie@
--- lines would read as one cookie whose value runs on into the next. Cookie
--- values cannot hold @", "@ (RFC 6265), so put back the @"; "@ WAI expects.
-rejoinCookies :: Header -> Header
-rejoinCookies (name, value)
-  | name == hCookie = (name, B.intercalate "; " (splitOn ", " value))
-  | otherwise = (name, value)
+-- | A @Content-Length@ value: ASCII digits only, at most 'maxBound' of
+-- 'Word64'.
+contentLength :: B.ByteString -> Maybe Word64
+contentLength s
+  | B.null s || not (BC.all (\c -> c >= '0' && c <= '9') s) = Nothing
+  | n > toInteger (maxBound :: Word64) = Nothing
+  | otherwise = Just (fromInteger n)
   where
-    splitOn sep s = case B.breakSubstring sep s of
-      (before, after)
-        | B.null after -> [before]
-        | otherwise -> before : splitOn sep (B.drop (B.length sep) after)
+    n = BC.foldl' (\acc c -> acc * 10 + toInteger (fromEnum c - fromEnum '0')) 0 s
 
 -- ---------------------------------------------------------------------------
 -- WAI Response -> F.Response

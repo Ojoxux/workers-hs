@@ -218,7 +218,11 @@ const sessionChecks = [
     const accepted = await sendYesod("/form", { method: "POST", headers: { cookie, "X-XSRF-TOKEN": token } });
     expectEqual(problems, "status with token", accepted.status, 200);
   }],
-  ["two Cookie header lines reach Yesod as two cookies", async (problems) => {
+  ["a Cookie value containing ', ' reaches Yesod as one cookie", async (problems) => {
+    const r = await sendYesod("/cookies", { headers: { cookie: "lang=x, _SESSION=ATTACKER" } });
+    expectEqual(problems, "cookies", await r.text(), '[("lang","x, _SESSION=ATTACKER")]');
+  }],
+  ["two Cookie header lines reach Yesod joined with ', '", async (problems) => {
     // fetch would merge them into one line, so send the request by hand.
     const { hostname, port } = new URL(yesod.base);
     const raw = await new Promise((resolve, reject) => {
@@ -229,7 +233,7 @@ const sessionChecks = [
       s.on("end", () => resolve(out));
       s.on("error", reject);
     });
-    if (!raw.includes('[("a","1"),("b","2")]')) problems.push(`response ${JSON.stringify(raw.slice(-200))}`);
+    if (!raw.includes('[("a","1, b=2")]')) problems.push(`response ${JSON.stringify(raw.slice(-200))}`);
   }],
 ];
 

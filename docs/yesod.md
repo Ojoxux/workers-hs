@@ -134,6 +134,14 @@ matters at very high traffic.
 **One key per app.** The HKDF salt and info are fixed, so two apps sharing a key
 accept each other's cookies. Give every app its own.
 
+**No server-side revocation.** The session lives only in the cookie, as with
+`clientSessionBackend`: clearing it at logout removes the browser's copy, but a
+copied cookie stays valid until it expires. The idle timeout restarts on every
+request and there is no absolute lifetime, so a copy that keeps being used
+never expires. To cap a login's lifetime, store the login time in the session
+and check it in the app; to revoke every session at once, replace the key
+without keeping the old one in `oldKeys`.
+
 **Production.** For login state, wrap the backend so the cookie is `Secure` and
 `SameSite=Lax`. Both wrappers take and return `IO (Maybe SessionBackend)`:
 

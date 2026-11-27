@@ -131,6 +131,11 @@ test("duplicate session cookies: only a single one that opens is used", async ()
   assert.equal((await send("/count", { cookie: `${COOKIE}=${five}; ${COOKIE}=${nine}` })).text, "1");
 });
 
+test("a session cookie inside another cookie's value is not a session cookie", async () => {
+  const five = await seal(await sessionKey(CURRENT), now() + 600, { count: "5" });
+  assert.equal((await send("/count", { cookie: `lang=x, ${COOKIE}=${five}` })).text, "1");
+});
+
 test("CSRF: a POST without the token is rejected, with it accepted", async () => {
   const form = await send("/form");
   const token = form.text;
