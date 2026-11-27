@@ -16,7 +16,7 @@ pretending.
 | `rawQueryString`, `queryString` | from `.search` |
 | `requestHeaders` | names arrive lowercased, as the Fetch API normalizes them; repeated headers arrive joined with `, `; `Cookie` is passed as is (see below) |
 | `requestBody` | read as it arrives, chunk by chunk; see [streaming.md](streaming.md) |
-| `requestBodyLength` | `KnownLength` from `Content-Length`; `ChunkedBody` for a body without one; `KnownLength 0` without a body |
+| `requestBodyLength` | `KnownLength` from `Content-Length` (digits only; anything else counts as absent), not checked against the body (see below); `ChunkedBody` for a body without one; `KnownLength 0` without a body |
 | `isSecure` | `protocol === 'https:'` |
 | `remoteHost` | recovered from `CF-Connecting-IP`, IPv4 or IPv6 |
 | `httpVersion` | always `HTTP/1.1` — Workers does not expose the real version |
@@ -33,6 +33,11 @@ another (a session cookie, or a `__Host-` one set from a sibling subdomain).
 The runtime joins repeated `Cookie` lines with `, ` too, so a non-browser
 client that sends several of them gets one cookie, whose value runs on into
 the next, from WAI cookie parsers.
+
+`requestBodyLength` is the `Content-Length` the request declares. A
+service-binding caller can send one that does not match the body, so do not
+rely on it to limit the body size; count the bytes read instead. Yesod's
+`maximumContentLength` counts them, so it is not affected.
 
 `rawPathInfo` and `rawQueryString` come from the request URL with its fragment,
 if any, dropped first — `#frag` is never sent to a server, but `request.url` can

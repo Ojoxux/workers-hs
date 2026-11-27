@@ -58,6 +58,18 @@ test("demo-wai: requestBodyLength from Content-Length", async () => {
   assert.match(text, /^requestBodyLength: KnownLength 10$/m);
 });
 
+test("demo-wai: a Content-Length that is not plain digits is ignored", async () => {
+  for (const value of ["-1", "0x10", "18446744073709551616"]) {
+    const { text } = await send(wai, "/echo", { method: "POST", headers: { "Content-Length": value }, body: "hello body" });
+    assert.match(text, /^requestBodyLength: ChunkedBody$/m, value);
+  }
+});
+
+test("demo-wai: requestBodyLength is the largest Content-Length", async () => {
+  const { text } = await send(wai, "/echo", { method: "POST", headers: { "Content-Length": "18446744073709551615" }, body: "hello body" });
+  assert.match(text, /^requestBodyLength: KnownLength 18446744073709551615$/m);
+});
+
 test("demo-wai: a streamed upload is chunked", async () => {
   const body = new ReadableStream({
     start(c) {

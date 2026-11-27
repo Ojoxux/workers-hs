@@ -45,6 +45,7 @@ import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as TE
 import qualified Data.Vault.Lazy            as Vault
+import           Data.Word                  (Word64)
 import           Network.HTTP.Types
 import           Network.Socket             (SockAddr (..), tupleToHostAddress)
 import           Network.Wai
@@ -103,7 +104,7 @@ toWaiRequest freq ctx = do
       hs = F.headers freq
   present <- FI.hasBody (F.body freq)
   reader <- F.bodyReader (F.body freq)
-  let len = case lookup hContentLength hs >>= readMaybe . BC.unpack of
+  let len = case lookup hContentLength hs >>= contentLength of
         Just n -> KnownLength n
         Nothing
           | present -> ChunkedBody
@@ -155,6 +156,16 @@ remoteHostFrom hs =
           SockAddrInet 0 (tupleToHostAddress (fromIntegral w, fromIntegral x, fromIntegral y, fromIntegral z))
     Just (IPv6 a) -> SockAddrInet6 0 0 (toHostAddress6 a) 0
     _             -> SockAddrInet 0 0
+
+-- | A @Content-Length@ value: ASCII digits only, at most 'maxBound' of
+-- 'Word64'.
+contentLength :: B.ByteString -> Maybe Word64
+contentLength s
+  | B.null s || not (BC.all (\c -> c >= '0' && c <= '9') s) = Nothing
+  | n > toInteger (maxBound :: Word64) = Nothing
+  | otherwise = Just (fromInteger n)
+  where
+    n = BC.foldl' (\acc c -> acc * 10 + toInteger (fromEnum c - fromEnum '0')) 0 s
 
 -- ---------------------------------------------------------------------------
 -- WAI Response -> F.Response
