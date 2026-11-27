@@ -32,10 +32,9 @@ test("demo-wai: an IPv6 CF-Connecting-IP is the remote host", async () => {
   assert.match(text, /^remoteHost: \[2001:db8:0:0:0:0:0:1\]:0$/m);
 });
 
-test("demo-wai: a Cookie header joined with ', ' reaches WAI joined with '; '", async () => {
-  // What workerd hands over for two Cookie lines; Node joins them with "; " itself.
-  const { text } = await send(wai, "/echo", { headers: { Cookie: "a=1, b=2" } });
-  assert.match(text, /^ {2}cookie: a=1; b=2$/m);
+test("demo-wai: a Cookie header containing ', ' reaches WAI unchanged", async () => {
+  const { text } = await send(wai, "/echo", { headers: { Cookie: "lang=x, _SESSION=ATTACKER" } });
+  assert.match(text, /^ {2}cookie: lang=x, _SESSION=ATTACKER$/m);
 });
 
 test("demo-wai: a URL fragment is not part of the path or query", async () => {

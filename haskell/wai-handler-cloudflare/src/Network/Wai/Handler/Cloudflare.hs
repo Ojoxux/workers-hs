@@ -115,7 +115,7 @@ toWaiRequest freq ctx = do
         -- ^ Workers does not expose the client's HTTP version.
       , rawPathInfo = path
       , rawQueryString = query
-      , requestHeaders = map rejoinCookies hs
+      , requestHeaders = hs
       , isSecure = secure
       , remoteHost = remoteHostFrom hs
       , pathInfo = decodePathSegments path
@@ -155,19 +155,6 @@ remoteHostFrom hs =
           SockAddrInet 0 (tupleToHostAddress (fromIntegral w, fromIntegral x, fromIntegral y, fromIntegral z))
     Just (IPv6 a) -> SockAddrInet6 0 0 (toHostAddress6 a) 0
     _             -> SockAddrInet 0 0
-
--- | The runtime joins repeated request headers with @", "@, so two @Cookie@
--- lines would read as one cookie whose value runs on into the next. Cookie
--- values cannot hold @", "@ (RFC 6265), so put back the @"; "@ WAI expects.
-rejoinCookies :: Header -> Header
-rejoinCookies (name, value)
-  | name == hCookie = (name, B.intercalate "; " (splitOn ", " value))
-  | otherwise = (name, value)
-  where
-    splitOn sep s = case B.breakSubstring sep s of
-      (before, after)
-        | B.null after -> [before]
-        | otherwise -> before : splitOn sep (B.drop (B.length sep) after)
 
 -- ---------------------------------------------------------------------------
 -- WAI Response -> F.Response
