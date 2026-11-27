@@ -18,13 +18,20 @@ pretending.
 | `requestBody` | read as it arrives, chunk by chunk; see [streaming.md](streaming.md) |
 | `requestBodyLength` | `KnownLength` from `Content-Length` (digits only; anything else counts as absent), not checked against the body (see below); `ChunkedBody` for a body without one; `KnownLength 0` without a body |
 | `isSecure` | `protocol === 'https:'` |
-| `remoteHost` | recovered from `CF-Connecting-IP`, IPv4 or IPv6 |
+| `remoteHost` | recovered from `CF-Connecting-IP`, IPv4 or IPv6; set by the caller outside the internet edge (see below) |
 | `httpVersion` | always `HTTP/1.1` — Workers does not expose the real version |
 | `vault` | holds the request's `Context`; read it with `requestContext` |
 
 `remoteHost` has to be a `SockAddr`, which Workers has no direct equivalent for:
 an IPv4 address becomes `SockAddrInet`, an IPv6 one `SockAddrInet6`, and a
 missing or unparsable header the `0.0.0.0:0` placeholder. The port is always 0.
+
+`CF-Connecting-IP` is only trustworthy for requests that come through the
+internet edge. Under `wrangler dev` a value the client sends passes through, a
+service-binding caller can set any value or none (giving the placeholder), and
+Cloudflare documents that subrequests from a Worker in the same zone reflect
+`x-real-ip`, which that Worker can set. Do not use `remoteHost` for
+authorization unless the Worker is reachable only from the internet edge.
 
 The `Cookie` header is passed as is. A browser sends one `Cookie` line joined
 with `; `, but a cookie set as `lang=x, _SESSION=…` reaches the Worker as
