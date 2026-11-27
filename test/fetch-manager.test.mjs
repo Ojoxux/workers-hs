@@ -3,6 +3,7 @@
 
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import { BASE, fakeCtx, loadWorker, startUpstream } from "./harness.mjs";
 
 let upstream;
@@ -184,4 +185,25 @@ test("a Bearer Authorization and a User-Agent reach the upstream (the shape of G
   const seen = JSON.parse(r.body).headers;
   assert.equal(seen.authorization, "Bearer tok123");
   assert.equal(seen["user-agent"], "workers-hs-test");
+});
+
+test("Authorization is kept on a same-origin redirect and dropped on a cross-origin one", async () => {
+  const same = await http({ url: `${upstream.url}/redirect`, bearer: "tok123" });
+  assert.equal(JSON.parse(same.body).headers.authorization, "Bearer tok123");
+
+  // Same host, different port: a different origin.
+  const other = createServer((req, res) => {
+    res.writeHead(302, { location: `${upstream.url}/echo-all` });
+    res.end();
+  });
+  await new Promise((r) => other.listen(0, "127.0.0.1", r));
+  try {
+    const cross = await http({ url: `http://127.0.0.1:${other.address().port}/`, bearer: "tok123", ua: "workers-hs-test" });
+    assert.equal(cross.status, "200");
+    const seen = JSON.parse(cross.body).headers;
+    assert.equal(seen.authorization, undefined);
+    assert.equal(seen["user-agent"], "workers-hs-test");
+  } finally {
+    await new Promise((r) => other.close(r));
+  }
 });

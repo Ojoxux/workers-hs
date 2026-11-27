@@ -21,6 +21,7 @@ library
   hs-source-dirs:   src
   exposed-modules:
     Network.HTTP.Client.Cloudflare
+    Network.HTTP.Client.Cloudflare.Redirect
     Network.HTTP.Client.Cloudflare.Wire
   build-depends:
     , base               >=4.17 && <5

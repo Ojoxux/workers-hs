@@ -16,8 +16,13 @@
 -- @
 --
 -- Redirects are not followed by fetch: http-client follows them itself, with
--- its own redirect count and cookie handling. A response body is decoded by
--- fetch, so Content-Encoding is removed before http-client sees it.
+-- its own redirect count and cookie handling. When a redirect leads to a
+-- different origin (scheme, host or port), @Authorization@,
+-- @Proxy-Authorization@ and @Cookie@ are removed from the request, as fetch
+-- would remove @Authorization@; see
+-- "Network.HTTP.Client.Cloudflare.Redirect". To keep them, set
+-- 'managerModifyRequest' to @pure@. A response body is decoded by fetch, so
+-- Content-Encoding is removed before http-client sees it.
 --
 -- A fetch that yields no usable response (no response at all, or a body that
 -- fails part-way through reading, whose message then says "while reading the
@@ -58,6 +63,7 @@ import           Network.HTTP.Client                  (HttpException (..),
 import           Network.HTTP.Client.Internal         (Connection, ManagerSettings (..),
                                                        makeConnection, throwHttp)
 
+import           Network.HTTP.Client.Cloudflare.Redirect (stripCredentialsOnCrossOriginRedirect)
 import           Network.HTTP.Client.Cloudflare.Wire
 
 newFetchManager :: IO Manager
@@ -66,7 +72,9 @@ newFetchManager = newManager fetchManagerSettings
 -- | 'defaultManagerSettings' with the connection factories replaced and
 -- proxies disabled (environment proxy variables are ignored; an explicit
 -- proxy is refused). Fetch failures are wrapped as 'ConnectionFailure',
--- bridge errors as 'InternalException'.
+-- bridge errors as 'InternalException'. 'managerModifyRequest' is
+-- 'stripCredentialsOnCrossOriginRedirect'; to add your own modification,
+-- compose it after that one (@managerModifyRequest fetchManagerSettings >=> yours@).
 fetchManagerSettings :: ManagerSettings
 fetchManagerSettings =
   managerSetProxy noProxy $
@@ -79,6 +87,7 @@ fetchManagerSettings =
       -- ConnectionFailure.
       , managerTlsProxyConnection =
           pure (\_ _ _ _ _ _ -> throwHttp (InternalException (toException (userError "http-client-cloudflare does not support proxies"))))
+      , managerModifyRequest = stripCredentialsOnCrossOriginRedirect
       , managerWrapException = \req action ->
           action
             `catches` [ Handler (\(e :: F.FetchException) -> throwIO (HttpExceptionRequest req (ConnectionFailure (toException e))))

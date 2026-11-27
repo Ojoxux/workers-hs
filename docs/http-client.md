@@ -47,7 +47,7 @@ pure Haskell and has no JavaScript in it.
 
 | Topic | What happens |
 | --- | --- |
-| Redirects | `fetch` is called with `redirect: "manual"`; `http-client` follows redirects itself, with its own count and cookie handling. |
+| Redirects | `fetch` is called with `redirect: "manual"`; `http-client` follows redirects itself, with its own count and cookie handling. Credentials are dropped on a redirect to another origin; see below. |
 | Content-Encoding | `fetch` decodes the body, so the header is dropped before `http-client` sees it (otherwise it would decode again). |
 | Content-Length | Recomputed from the buffered body. `HEAD` responses and 1xx, 204 and 304 responses keep the upstream value and get none if upstream sent none. |
 | Transfer-Encoding, Connection | Dropped from the response; `Connection: close` is added. |
@@ -56,6 +56,40 @@ pure Haskell and has no JavaScript in it.
 | Request body | Content-Length and chunked bodies are both accepted and reassembled. |
 | Bodies | Both are buffered completely in memory. |
 | Proxies | Not supported. |
+
+## Redirects to another origin
+
+When `http-client` follows a redirect whose origin (scheme, host and port)
+differs from the request before it, the `Authorization`, `Proxy-Authorization`
+and `Cookie` headers are removed from the redirected request. Once removed they
+stay removed for the rest of the chain, even if it returns to the first
+origin. This matches `fetch` following a redirect itself, which removes
+`Authorization` on a cross-origin redirect. Plain `http-client` forwards every
+header unless the request's `shouldStripHeaderOnRedirect` says otherwise.
+
+Cookies from a request's `cookieJar` are covered too: `http-client` carries the
+previous request's `Cookie` header into the redirected one and replaces it only
+when the jar has cookies for the new host.
+
+This is done by `fetchManagerSettings`' `managerModifyRequest`
+(`Network.HTTP.Client.Cloudflare.Redirect.stripCredentialsOnCrossOriginRedirect`).
+It only removes headers, so whatever `shouldStripHeaderOnRedirect` and
+`shouldStripHeaderOnRedirectIfOnDifferentHostOnly` on the request strip is still
+stripped as configured.
+
+- To keep the headers across origins, replace it:
+  `fetchManagerSettings { managerModifyRequest = pure }`.
+- To add your own modification, compose it after this one, so headers it adds
+  on every request are not removed:
+  `fetchManagerSettings { managerModifyRequest = managerModifyRequest fetchManagerSettings >=> yours }`.
+- It applies to redirects that `http-client` follows (`redirectCount` above 0,
+  through `httpLbs`, `withResponse`, `responseOpen` or `withResponseHistory`).
+  A redirect loop written by hand with `redirectCount = 0` and
+  `getRedirectedRequest` is not covered.
+- The origin of each request is recorded inside the request, in its
+  `shouldStripHeaderOnRedirect` field. A `Request` taken back from a response or
+  an exception and sent again to a different origin therefore also loses these
+  headers.
 
 ## Errors
 
